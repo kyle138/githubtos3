@@ -15,5 +15,13 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Kyle138",
-  "license": "ISC"
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kyle138/githubtos3.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kyle138/githubtos3/issues"
+  },
+  "homepage": "https://github.com/kyle138/githubtos3#readme"
 }
