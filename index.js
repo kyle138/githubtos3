@@ -59,7 +59,7 @@ exports.handler = function(event, context) {
       };
       github.repos.getContent( apiMsg , function(err, data) {
         if (err) {
-          console.log("getContent failed: "+err);
+          console.log("deploy.json is missing from this repo: "+err);
           return false;
         } else {
           dataContent = JSON.parse(new Buffer(data.content, 'base64'));
