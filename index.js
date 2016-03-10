@@ -31,9 +31,9 @@ exports.handler = function(event, context) {
     var githubEventObject = getSNSMessageObject(githubEventString);
 
     function getDeployJSON(err, user, repo, ref, callback) {
-      console.log("getDeployJSON::user " + user); //DEBUG
-      console.log("getDeployJSON::repo " + repo); //DEBUG
-      console.log("getDeployJSON::ref " + ref); //DEBUG
+      //console.log("getDeployJSON::user " + user); //DEBUG
+      //console.log("getDeployJSON::repo " + repo); //DEBUG
+      //console.log("getDeployJSON::ref " + ref); //DEBUG
       if(err) {
         context.fail(err);
         return;
@@ -63,8 +63,8 @@ exports.handler = function(event, context) {
           return false;
         } else {
           dataContent = JSON.parse(new Buffer(data.content, 'base64'));
-          console.log("getDeployJSON::Type " + dataContent.deploy.type); //DEBUG
-          console.log("getDeployJSON::Target " + dataContent.deploy.target); //DEBUG
+          //console.log("getDeployJSON::Type " + dataContent.deploy.type); //DEBUG
+          //console.log("getDeployJSON::Target " + dataContent.deploy.target); //DEBUG
           callback(null, dataContent);
         }
       });
@@ -77,11 +77,11 @@ exports.handler = function(event, context) {
       } else {
         if(data.deploy.type == 'S3') {
           console.log("This type is S3");	//DEBUG
-          console.log("Target is " + data.deploy.target);
+          console.log("Target is " + data.deploy.target); //DEBUG
           deployS3(err, data.deploy.target);
         } else if(data.deploy.type == 'EB') {
           console.log("This type is EB");	//DEBUG
-          console.log("Target is " + data.deploy.target);
+          console.log("Target is " + data.deploy.target); //DEBUG
         } else {
           console.log('deployType must be S3 or EB');
           return;
@@ -157,6 +157,7 @@ exports.handler = function(event, context) {
               context.fail("zip failed: "+err);
             } else {
               extractedTotal = count;
+              console.log("Extracted files:: " + extractedTotal); //DEBUG
             }
           });
         });
@@ -184,10 +185,10 @@ exports.handler = function(event, context) {
                   // Keep track of uploaded files to avoid race condition.
                   // once it equals the number of extracted files context.succeed
                   uploadedCount++;
-                  console.log("S3 Upload: " + uploadedCount + "::" + data);
+                  //console.log("S3 Upload: " + uploadedCount); //DEBUG
                   if(uploadedCount==extractedTotal) {
-                    console.log(uploadedCount+" files deployed to "+target);
-                    context.succeed();  //Commented out for DEBUG
+                    console.log(uploadedCount+" files deployed to "+target); //DEBUG
+                    context.succeed();  // That's all folks
                   }
                 }
               }); // End S3.upload()
@@ -195,7 +196,7 @@ exports.handler = function(event, context) {
           }); // End readFile()
         }); // End zip.on('extract')
         zip.on('entry', function(entry) {
-          console.log("Read entry ", entry.name);
+          //console.log("Read entry ", entry.name); //DEBUG
         });
       }
     } // End deployS3
@@ -203,9 +204,10 @@ exports.handler = function(event, context) {
     // If deploy.type is EB
     function deployEB(err, target) {
       console.log("Deploy to Elastic Beanstalk functionality not currently supported.");
+      context.done(); // deployEB may be added at a future date.
     } // End deployEB
 
-    // Responds to new issues opened in github, no use for this really, just shows the use of the github API.
+    // Responds to new issues opened in github, no need for this really, just shows the use of the github API.
     if (githubEventObject.hasOwnProperty('issue') && githubEventObject.action == 'opened') {
         // An event for opening an issue
         boolIssue=true;
