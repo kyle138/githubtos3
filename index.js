@@ -111,7 +111,7 @@ exports.handler = function(event, context) {
               requestDataString += chunkBuffer.toString();
             });
             response.on('end', function() {
-              //console.log("All data received...");  //DEBUG
+              console.log("GitHub Zipball received...");  //DEBUG
             });
             response.pipe(file);
             file.on('uncaughtException', function(err) {
@@ -146,7 +146,7 @@ exports.handler = function(event, context) {
           context.fail("Zip failed: "+err);
         });
         zip.on('ready', function() {
-          //console.log("Entries read: "+zip.entriesCount); //DEBUG
+          console.log("Entries read: "+zip.entriesCount); //DEBUG
           // The first entry should be the subdirectory added by github.
           // We don't want to upload that to S3 so capture it here
           // so it can be pruned from the S3 key during upload.
@@ -184,6 +184,7 @@ exports.handler = function(event, context) {
                   // Keep track of uploaded files to avoid race condition.
                   // once it equals the number of extracted files context.succeed
                   uploadedCount++;
+                  console.log("S3 Upload: " + uploadedCount + "::" + data);
                   if(uploadedCount==extractedTotal) {
                     console.log(uploadedCount+" files deployed to "+target);
                     context.succeed();  //Commented out for DEBUG
