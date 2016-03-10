@@ -218,7 +218,7 @@ exports.handler = function(event, context) {
         github.issues.createComment({
             user: githubEventObject.repository.owner.login,
             repo: githubEventObject.repository.name,
-            number: githubEventObject.issue.nummber,
+            number: githubEventObject.issue.number,
             body: "Hi @" + poster + "!\n" +
                   "\n" +
                   "Thank you for your interest in this project! Unfortunately, we're " +
