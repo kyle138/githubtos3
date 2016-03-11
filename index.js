@@ -243,6 +243,6 @@ exports.handler = function(event, context) {
   // Nothing, just close it. Honestly this should never happen if the
   // GitHub webhooks are configured properly.
   if(!boolIssue&&!boolPusher) {
-    context.done();
+    context.done("Nothing to do, EOL");
   }
 };  // End exports.handler
