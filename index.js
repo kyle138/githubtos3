@@ -187,8 +187,8 @@ exports.handler = function(event, context) {
                   uploadedCount++;
                   //console.log("S3 Upload: " + uploadedCount); //DEBUG
                   if(uploadedCount==extractedTotal) {
-                    //console.log(uploadedCount+" files deployed to "+target); //DEBUG
-                    context.succeed(uploadedCount+" files deployed to "+target);  // That's all folks
+                    console.log(uploadedCount+" files deployed to "+target); //DEBUG
+                    context.succeed();  // That's all folks
                   }
                 }
               }); // End S3.upload()
