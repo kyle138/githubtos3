@@ -26,14 +26,16 @@ function getSNSMessageObject(msgString) {
 }
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.6');    //DEBUG
+    console.log('Version: ','2.0.8');    //DEBUG
     var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
     var githubEventObject = getSNSMessageObject(githubEventString);
 
+    //console.log("received GitHub event:", githubEventString); //DEBUG
+
     function getDeployJSON(err, user, repo, ref, callback) {
-      //console.log("getDeployJSON::user " + user); //DEBUG
-      //console.log("getDeployJSON::repo " + repo); //DEBUG
-      //console.log("getDeployJSON::ref " + ref); //DEBUG
+      console.log("getDeployJSON::user " + user); //DEBUG
+      console.log("getDeployJSON::repo " + repo); //DEBUG
+      console.log("getDeployJSON::ref " + ref); //DEBUG
       if(err) {
         context.fail(err);
         return;
@@ -49,7 +51,7 @@ exports.handler = function(event, context) {
         return;
       }
       if(!ref) {
-        ref="master";
+        ref='refs/heads/master'; // Default to master, this could also be dev
       }
       var apiMsg = {
         user: user,
@@ -60,30 +62,56 @@ exports.handler = function(event, context) {
       github.repos.getContent( apiMsg , function(err, data) {
         if (err) {
           console.log("deploy.json is missing from this repo: "+err);
+          context.fail(err);
           return false;
         } else {
           dataContent = JSON.parse(new Buffer(data.content, 'base64'));
           //console.log("getDeployJSON::Type " + dataContent.deploy.type); //DEBUG
-          //console.log("getDeployJSON::Target " + dataContent.deploy.target); //DEBUG
-          callback(null, dataContent);
+          //console.log("getDeployJSON::Target.master " + dataContent.deploy.target.master); //DEBUG
+          //console.log("getDeployJSON::Target.dev " + dataContent.deploy.target.dev); //DEBUG
+          callback(null, dataContent, ref);
         }
       });
     }
 
-    function getDeployType(err, data) {
+    function getDeployType(err, data, branch) {
+      if(!data) {
+        callback( new Error('Parameter data is required'));
+        return;
+      }
+      if(!branch) {
+        branch="master";
+      }
       if(err) {
         console.log(err);
         return;
       } else {
         if(data.deploy.type == 'S3') {
-          console.log("This type is S3");	//DEBUG
-          console.log("Target is " + data.deploy.target); //DEBUG
-          deployS3(err, data.deploy.target);
+          if(branch == 'refs/heads/master') {
+            console.log("This type is S3");	//DEBUG
+            console.log("Target is " + data.deploy.target.master); //DEBUG
+            deployS3(err, data.deploy.target.master);
+          } else if(branch == 'refs/heads/dev') {
+            console.log("This type is S3");	//DEBUG
+            console.log("Target is " + data.deploy.target.dev); //DEBUG
+            deployS3(err, data.deploy.target.dev);
+          } else {
+            console.log("Unsupported branch: " + branch); //DEBUG
+            context.fail();
+          }
         } else if(data.deploy.type == 'EB') {
-          console.log("This type is EB");	//DEBUG
-          console.log("Target is " + data.deploy.target); //DEBUG
+          if(branch=='refs/heads/master') {
+            console.log("This type is EB");	//DEBUG
+            console.log("Target is " + data.deploy.target.master); //DEBUG
+            console.log("This may be enabled in a future version.");  //#HighHopes
+          } else if(branch=='refs/heads/dev') {
+            console.log("This type is EB");	//DEBUG
+            console.log("Target is " + data.deploy.target.dev); //DEBUG
+            console.log("This may be enabled in a future version.");  //#HighHopes
+          }
         } else {
           console.log('deployType must be S3 or EB');
+          context.fail();
           return;
         }
       }
@@ -207,17 +235,35 @@ exports.handler = function(event, context) {
       context.done(); // deployEB may be added at a future date.
     } // End deployEB
 
+    // main function
     // Checks if a push has been made to the master branch, if so, deploy to S3
-    if (githubEventObject.hasOwnProperty('pusher') && githubEventObject.ref == 'refs/heads/master') {
-      boolPusher=true;
+    if (githubEventObject.hasOwnProperty('pusher')) {
+      // if push to master branch, deploy to deploy.target.master
+      if (githubEventObject.ref == 'refs/heads/master') {
+        boolPusher=true;
+        //console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
 
-      // Get the archive url
-      getArchive(
-        githubEventObject.repository.owner.name,
-        githubEventObject.repository.name,
-        githubEventObject.ref,
-        getDeployJSON
-      );
+        // Get the archive url
+        getArchive(
+          githubEventObject.repository.owner.name,
+          githubEventObject.repository.name,
+          githubEventObject.ref,
+          getDeployJSON
+        );
+      }
+      // If push to dev branch, deploy to deploy.target.dev
+      if (githubEventObject.ref == 'refs/heads/dev') {
+        boolPusher=true;
+        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
+
+        // Get the archive url
+        getArchive(
+          githubEventObject.repository.owner.name,
+          githubEventObject.repository.name,
+          githubEventObject.ref,
+          getDeployJSON
+        );
+      }
     }  // End If(Pusher)
 
   // Nothing, just close it. Honestly this should never happen if the
