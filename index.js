@@ -208,6 +208,9 @@ exports.handler = function(event, context) {
     } // End deployEB
 
     // Responds to new issues opened in github, no need for this really, just shows the use of the github API.
+    // This function removed from the master branch because Issues event is not enabled by default for the amazonsns
+    // service and GitHub makes it too difficult to enable. The createHook.js file on the issues branch can be used to
+    // activate the hook, or it can be done through the GitHub api using curl.
     if (githubEventObject.hasOwnProperty('issue') && githubEventObject.action == 'opened') {
         // An event for opening an issue
         boolIssue=true;
