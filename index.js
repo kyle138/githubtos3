@@ -51,7 +51,7 @@ exports.handler = function(event, context) {
         return;
       }
       if(!ref) {
-        ref='ref/heads/master'; // Default to master, this could also be dev
+        ref='refs/heads/master'; // Default to master, this could also be dev
       }
       var apiMsg = {
         user: user,
@@ -86,11 +86,11 @@ exports.handler = function(event, context) {
         return;
       } else {
         if(data.deploy.type == 'S3') {
-          if(branch == 'ref/heads/master') {
+          if(branch == 'refs/heads/master') {
             console.log("This type is S3");	//DEBUG
             console.log("Target is " + data.deploy.target); //DEBUG
             deployS3(err, data.deploy.target);
-          } else if(branch == 'ref/heads/dev') {
+          } else if(branch == 'refs/heads/dev') {
             console.log("This type is S3");	//DEBUG
             console.log("Target is " + data.deploy.target-dev); //DEBUG
             deployS3(err, data.deploy.target-dev);
@@ -99,11 +99,11 @@ exports.handler = function(event, context) {
             context.fail();
           }
         } else if(data.deploy.type == 'EB') {
-          if(branch=='ref/heads/master') {
+          if(branch=='refs/heads/master') {
             console.log("This type is EB");	//DEBUG
             console.log("Target is " + data.deploy.target); //DEBUG
             console.log("This may be enabled in a future version.");  //#HighHopes
-          } else if(branch=='ref/heads/dev') {
+          } else if(branch=='refs/heads/dev') {
             console.log("This type is EB");	//DEBUG
             console.log("Target is " + data.deploy.target-dev); //DEBUG
             console.log("This may be enabled in a future version.");  //#HighHopes
