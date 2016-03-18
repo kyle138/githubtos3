@@ -26,14 +26,16 @@ function getSNSMessageObject(msgString) {
 }
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.6');    //DEBUG
+    console.log('Version: ','2.0.7');    //DEBUG
     var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
     var githubEventObject = getSNSMessageObject(githubEventString);
 
+    console.log("received GitHub event:", githubEventString); //DEBUG
+
     function getDeployJSON(err, user, repo, ref, callback) {
-      //console.log("getDeployJSON::user " + user); //DEBUG
-      //console.log("getDeployJSON::repo " + repo); //DEBUG
-      //console.log("getDeployJSON::ref " + ref); //DEBUG
+      console.log("getDeployJSON::user " + user); //DEBUG
+      console.log("getDeployJSON::repo " + repo); //DEBUG
+      console.log("getDeployJSON::ref " + ref); //DEBUG
       if(err) {
         context.fail(err);
         return;
@@ -84,16 +86,16 @@ exports.handler = function(event, context) {
         return;
       } else {
         if(data.deploy.type == 'S3') {
-          if(branch=='ref/heads/master') {
+          if(branch == 'ref/heads/master') {
             console.log("This type is S3");	//DEBUG
             console.log("Target is " + data.deploy.target); //DEBUG
             deployS3(err, data.deploy.target);
-          } else if(branch=='ref/heads/dev') {
+          } else if(branch == 'ref/heads/dev') {
             console.log("This type is S3");	//DEBUG
             console.log("Target is " + data.deploy.target-dev); //DEBUG
             deployS3(err, data.deploy.target-dev);
           } else {
-            console.log("Unsupport branch.");
+            console.log("Unsupported branch: " + branch); //DEBUG
             context.fail();
           }
         } else if(data.deploy.type == 'EB') {
@@ -238,6 +240,7 @@ exports.handler = function(event, context) {
       // if push to master branch, deploy to deploy.target
       if (githubEventObject.ref == 'refs/heads/master') {
         boolPusher=true;
+        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
 
         // Get the archive url
         getArchive(
@@ -250,6 +253,7 @@ exports.handler = function(event, context) {
       // If push to dev branch, deploy to deploy.target-dev
       if (githubEventObject.ref == 'refs/heads/dev') {
         boolPusher=true;
+        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
 
         // Get the archive url
         getArchive(
