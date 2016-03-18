@@ -207,26 +207,6 @@ exports.handler = function(event, context) {
       context.done(); // deployEB may be added at a future date.
     } // End deployEB
 
-    // Responds to new issues opened in github, no need for this really, just shows the use of the github API.
-    if (githubEventObject.hasOwnProperty('issue') && githubEventObject.action == 'opened') {
-        // An event for opening an issue
-        boolIssue=true;
-
-        // Get user name of the comment poster
-        var poster = githubEventObject.issue.user.login;
-
-        github.issues.createComment({
-            user: githubEventObject.repository.owner.login,
-            repo: githubEventObject.repository.name,
-            number: githubEventObject.issue.number,
-            body: "Hi @" + poster + "!\n" +
-                  "\n" +
-                  "Thank you for your interest in this project! Unfortunately, we're " +
-                  "really busy at the moment, but we'll get to your issue as soon as " +
-                  "possible. Have a great day!"
-        }, context.done);
-    } // End Issue-Opened
-
     // Checks if a push has been made to the master branch, if so, deploy to S3
     if (githubEventObject.hasOwnProperty('pusher') && githubEventObject.ref == 'refs/heads/master') {
       boolPusher=true;
