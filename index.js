@@ -30,7 +30,7 @@ exports.handler = function(event, context) {
     var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
     var githubEventObject = getSNSMessageObject(githubEventString);
 
-    console.log("received GitHub event:", githubEventString); //DEBUG
+    //console.log("received GitHub event:", githubEventString); //DEBUG
 
     function getDeployJSON(err, user, repo, ref, callback) {
       console.log("getDeployJSON::user " + user); //DEBUG
@@ -238,10 +238,10 @@ exports.handler = function(event, context) {
     // main function
     // Checks if a push has been made to the master branch, if so, deploy to S3
     if (githubEventObject.hasOwnProperty('pusher')) {
-      // if push to master branch, deploy to deploy.target
+      // if push to master branch, deploy to deploy.target.master
       if (githubEventObject.ref == 'refs/heads/master') {
         boolPusher=true;
-        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
+        //console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
 
         // Get the archive url
         getArchive(
@@ -251,7 +251,7 @@ exports.handler = function(event, context) {
           getDeployJSON
         );
       }
-      // If push to dev branch, deploy to deploy.target-dev
+      // If push to dev branch, deploy to deploy.target.dev
       if (githubEventObject.ref == 'refs/heads/dev') {
         boolPusher=true;
         console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
