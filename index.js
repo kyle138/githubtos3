@@ -26,7 +26,7 @@ function getSNSMessageObject(msgString) {
 }
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.7');    //DEBUG
+    console.log('Version: ','2.0.8');    //DEBUG
     var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
     var githubEventObject = getSNSMessageObject(githubEventString);
 
@@ -67,7 +67,8 @@ exports.handler = function(event, context) {
         } else {
           dataContent = JSON.parse(new Buffer(data.content, 'base64'));
           //console.log("getDeployJSON::Type " + dataContent.deploy.type); //DEBUG
-          //console.log("getDeployJSON::Target " + dataContent.deploy.target); //DEBUG
+          //console.log("getDeployJSON::Target.master " + dataContent.deploy.target.master); //DEBUG
+          //console.log("getDeployJSON::Target.dev " + dataContent.deploy.target.dev); //DEBUG
           callback(null, dataContent, ref);
         }
       });
@@ -88,12 +89,12 @@ exports.handler = function(event, context) {
         if(data.deploy.type == 'S3') {
           if(branch == 'refs/heads/master') {
             console.log("This type is S3");	//DEBUG
-            console.log("Target is " + data.deploy.target); //DEBUG
-            deployS3(err, data.deploy.target);
+            console.log("Target is " + data.deploy.target.master); //DEBUG
+            deployS3(err, data.deploy.target.master);
           } else if(branch == 'refs/heads/dev') {
             console.log("This type is S3");	//DEBUG
-            console.log("Target is " + data.deploy.target-dev); //DEBUG
-            deployS3(err, data.deploy.target-dev);
+            console.log("Target is " + data.deploy.target.dev); //DEBUG
+            deployS3(err, data.deploy.target.dev);
           } else {
             console.log("Unsupported branch: " + branch); //DEBUG
             context.fail();
@@ -101,11 +102,11 @@ exports.handler = function(event, context) {
         } else if(data.deploy.type == 'EB') {
           if(branch=='refs/heads/master') {
             console.log("This type is EB");	//DEBUG
-            console.log("Target is " + data.deploy.target); //DEBUG
+            console.log("Target is " + data.deploy.target.master); //DEBUG
             console.log("This may be enabled in a future version.");  //#HighHopes
           } else if(branch=='refs/heads/dev') {
             console.log("This type is EB");	//DEBUG
-            console.log("Target is " + data.deploy.target-dev); //DEBUG
+            console.log("Target is " + data.deploy.target.dev); //DEBUG
             console.log("This may be enabled in a future version.");  //#HighHopes
           }
         } else {
