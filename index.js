@@ -101,10 +101,18 @@ exports.handler = function(event, context) {
           }
         } else if(data.deploy.type == 'EB') {
           if(branch=='refs/heads/master') {
+            if(!data.deploy.target.master) {
+              console.log("target.master is not assigned in deploy.json.");
+              context.fail();
+            }
             console.log("This type is EB");	//DEBUG
             console.log("Target is " + data.deploy.target.master); //DEBUG
             console.log("This may be enabled in a future version.");  //#HighHopes
           } else if(branch=='refs/heads/dev') {
+            if(!data.deploy.target.dev) {
+              console.log("target.dev is not assigned in deploy.json.");
+              context.fail();
+            }
             console.log("This type is EB");	//DEBUG
             console.log("Target is " + data.deploy.target.dev); //DEBUG
             console.log("This may be enabled in a future version.");  //#HighHopes
