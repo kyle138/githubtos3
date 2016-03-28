@@ -26,7 +26,7 @@ function getSNSMessageObject(msgString) {
 }
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.9');    //DEBUG
+    console.log('Version: ','2.0.10');    //DEBUG
     var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
     var githubEventObject = getSNSMessageObject(githubEventString);
 
@@ -88,10 +88,18 @@ exports.handler = function(event, context) {
       } else {
         if(data.deploy.type == 'S3') {
           if(branch == 'refs/heads/master') {
+            if(!data.deploy.target.master) {
+              console.log("target.master is not assigned in deploy.json.");
+              context.fail("target.master is not assigned in deploy.json.");
+            }
             console.log("This type is S3");	//DEBUG
             console.log("Target is " + data.deploy.target.master); //DEBUG
             deployS3(err, data.deploy.target.master);
           } else if(branch == 'refs/heads/dev') {
+            if(!data.deploy.target.dev) {
+              console.log("target.dev is not assigned in deploy.json.");
+              context.fail("target.dev is not assigned in deploy.json.");
+            }
             console.log("This type is S3");	//DEBUG
             console.log("Target is " + data.deploy.target.dev); //DEBUG
             deployS3(err, data.deploy.target.dev);
