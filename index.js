@@ -26,7 +26,7 @@ function getSNSMessageObject(msgString) {
 }
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.10');    //DEBUG
+    console.log('Version: ','2.0.11');    //DEBUG
     var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
     var githubEventObject = getSNSMessageObject(githubEventString);
 
@@ -91,18 +91,20 @@ exports.handler = function(event, context) {
             if(!data.deploy.target.master) {
               console.log("target.master is not assigned in deploy.json.");
               context.fail("target.master is not assigned in deploy.json.");
+            } else {
+              console.log("This type is S3");	//DEBUG
+              console.log("Target is " + data.deploy.target.master); //DEBUG
+              deployS3(err, data.deploy.target.master);
             }
-            console.log("This type is S3");	//DEBUG
-            console.log("Target is " + data.deploy.target.master); //DEBUG
-            deployS3(err, data.deploy.target.master);
           } else if(branch == 'refs/heads/dev') {
             if(!data.deploy.target.dev) {
               console.log("target.dev is not assigned in deploy.json.");
               context.fail("target.dev is not assigned in deploy.json.");
+            } else {
+              console.log("This type is S3");	//DEBUG
+              console.log("Target is " + data.deploy.target.dev); //DEBUG
+              deployS3(err, data.deploy.target.dev);
             }
-            console.log("This type is S3");	//DEBUG
-            console.log("Target is " + data.deploy.target.dev); //DEBUG
-            deployS3(err, data.deploy.target.dev);
           } else {
             console.log("Unsupported branch: " + branch); //DEBUG
             context.fail();
@@ -112,18 +114,20 @@ exports.handler = function(event, context) {
             if(!data.deploy.target.master) {
               console.log("target.master is not assigned in deploy.json.");
               context.fail("target.master is not assigned in deploy.json.");
+            } else {
+              console.log("This type is EB");	//DEBUG
+              console.log("Target is " + data.deploy.target.master); //DEBUG
+              console.log("This may be enabled in a future version.");  //#HighHopes
             }
-            console.log("This type is EB");	//DEBUG
-            console.log("Target is " + data.deploy.target.master); //DEBUG
-            console.log("This may be enabled in a future version.");  //#HighHopes
           } else if(branch=='refs/heads/dev') {
             if(!data.deploy.target.dev) {
               console.log("target.dev is not assigned in deploy.json.");
               context.fail("target.dev is not assigned in deploy.json.");
+            } else {
+              console.log("This type is EB");	//DEBUG
+              console.log("Target is " + data.deploy.target.dev); //DEBUG
+              console.log("This may be enabled in a future version.");  //#HighHopes
             }
-            console.log("This type is EB");	//DEBUG
-            console.log("Target is " + data.deploy.target.dev); //DEBUG
-            console.log("This may be enabled in a future version.");  //#HighHopes
           }
         } else {
           console.log('deployType must be S3 or EB');
