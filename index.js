@@ -22,6 +22,7 @@ function getSNSMessageObject(msgString) {
     var x = msgString.replace(/\\/g,'');
     var y = x.substring(1,x.length-1);
     var z = JSON.parse(y);
+    console.log('SNSMessageObject: ', JSON.stringify(z,null,2));  //DEBUG
     return z;
 }
 
