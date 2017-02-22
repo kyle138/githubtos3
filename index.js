@@ -20,7 +20,9 @@ var extractedTotal = uploadedCount = 0;
 
 function getSNSMessageObject(msgString) {
     var x = msgString.replace(/\\/g,'');
+    console.log("SNSMessageObject deslashed: "+x); //DEBUG
     var y = x.substring(1,x.length-1);
+    console.log("SNSMessageObject dequoted: "+y); //DEBUG
     var z = JSON.parse(y);
     console.log('SNSMessageObject: ', JSON.stringify(z,null,2));  //DEBUG
     return z;
