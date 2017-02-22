@@ -263,7 +263,7 @@ exports.handler = function(event, context) {
       // if push to master branch, deploy to deploy.target.master
       if (githubEventObject.ref == 'refs/heads/master') {
         boolPusher=true;
-        //console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
+        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
 
         // Get the archive url
         getArchive(
