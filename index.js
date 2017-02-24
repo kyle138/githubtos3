@@ -2,9 +2,6 @@ var GitHubApi = require('github');
 var github = new GitHubApi({
     version: '3.0.0'
 });
-// Authenticate to github
-var github_token = require('./github_token.json');
-github.authenticate(github_token);
 var https = require('https');
 var fs = require('fs');
 var StreamZip = require('node-stream-zip');
@@ -17,6 +14,13 @@ var file;
 var requestDataString = '';
 var firstEntry = '';
 var extractedTotal = uploadedCount = 0;
+
+// Authenticate to github
+var github_token = {
+  "type": "oauth",
+  "token": process.env.github_token
+};
+github.authenticate(github_token);
 
 exports.handler = function(event, context) {
     console.log('Version: ','2.0.11 (debug)');    //DEBUG
