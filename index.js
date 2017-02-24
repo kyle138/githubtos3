@@ -23,7 +23,7 @@ var github_token = {
 github.authenticate(github_token);
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.11 (debug)');    //DEBUG
+    console.log('Version: ','2.0.2');    //DEBUG
     console.log('Received event:', JSON.stringify(event,null,2)); //DEBUG
     var githubEventObject = JSON.parse(event.Records[0].Sns.Message);
 
