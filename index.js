@@ -31,8 +31,9 @@ function getSNSMessageObject(msgString) {
 exports.handler = function(event, context) {
     console.log('Version: ','2.0.11 (debug)');    //DEBUG
     console.log('Received event:', JSON.stringify(event,null,2)); //DEBUG
-    var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
-    var githubEventObject = getSNSMessageObject(githubEventString);
+    var githubEventObject = JSON.parse(event.Records[0].Sns.Message);
+//    var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
+//    var githubEventObject = getSNSMessageObject(githubEventString);
 
     //console.log("received GitHub event:", githubEventString); //DEBUG
 
