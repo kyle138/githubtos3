@@ -2,9 +2,6 @@ var GitHubApi = require('github');
 var github = new GitHubApi({
     version: '3.0.0'
 });
-// Authenticate to github
-var github_token = require('./github_token.json');
-github.authenticate(github_token);
 var https = require('https');
 var fs = require('fs');
 var StreamZip = require('node-stream-zip');
@@ -18,17 +15,18 @@ var requestDataString = '';
 var firstEntry = '';
 var extractedTotal = uploadedCount = 0;
 
-function getSNSMessageObject(msgString) {
-    var x = msgString.replace(/\\/g,'');
-    var y = x.substring(1,x.length-1);
-    var z = JSON.parse(y);
-    return z;
-}
+// Authenticate to github
+var github_token = {
+  "type": "oauth",
+  "token": process.env.github_token
+};
+github.authenticate(github_token);
+
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.8');    //DEBUG
-    var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
-    var githubEventObject = getSNSMessageObject(githubEventString);
+    console.log('Version: ','2.0.11 (debug)');    //DEBUG
+    console.log('Received event:', JSON.stringify(event,null,2)); //DEBUG
+    var githubEventObject = JSON.parse(event.Records[0].Sns.Message);
 
     //console.log("received GitHub event:", githubEventString); //DEBUG
 
@@ -88,26 +86,46 @@ exports.handler = function(event, context) {
       } else {
         if(data.deploy.type == 'S3') {
           if(branch == 'refs/heads/master') {
-            console.log("This type is S3");	//DEBUG
-            console.log("Target is " + data.deploy.target.master); //DEBUG
-            deployS3(err, data.deploy.target.master);
+            if(!data.deploy.target.master) {
+              console.log("target.master is not assigned in deploy.json.");
+              context.fail("target.master is not assigned in deploy.json.");
+            } else {
+              console.log("This type is S3");	//DEBUG
+              console.log("Target is " + data.deploy.target.master); //DEBUG
+              deployS3(err, data.deploy.target.master);
+            }
           } else if(branch == 'refs/heads/dev') {
-            console.log("This type is S3");	//DEBUG
-            console.log("Target is " + data.deploy.target.dev); //DEBUG
-            deployS3(err, data.deploy.target.dev);
+            if(!data.deploy.target.dev) {
+              console.log("target.dev is not assigned in deploy.json.");
+              context.fail("target.dev is not assigned in deploy.json.");
+            } else {
+              console.log("This type is S3");	//DEBUG
+              console.log("Target is " + data.deploy.target.dev); //DEBUG
+              deployS3(err, data.deploy.target.dev);
+            }
           } else {
             console.log("Unsupported branch: " + branch); //DEBUG
             context.fail();
           }
         } else if(data.deploy.type == 'EB') {
           if(branch=='refs/heads/master') {
-            console.log("This type is EB");	//DEBUG
-            console.log("Target is " + data.deploy.target.master); //DEBUG
-            console.log("This may be enabled in a future version.");  //#HighHopes
+            if(!data.deploy.target.master) {
+              console.log("target.master is not assigned in deploy.json.");
+              context.fail("target.master is not assigned in deploy.json.");
+            } else {
+              console.log("This type is EB");	//DEBUG
+              console.log("Target is " + data.deploy.target.master); //DEBUG
+              console.log("This may be enabled in a future version.");  //#HighHopes
+            }
           } else if(branch=='refs/heads/dev') {
-            console.log("This type is EB");	//DEBUG
-            console.log("Target is " + data.deploy.target.dev); //DEBUG
-            console.log("This may be enabled in a future version.");  //#HighHopes
+            if(!data.deploy.target.dev) {
+              console.log("target.dev is not assigned in deploy.json.");
+              context.fail("target.dev is not assigned in deploy.json.");
+            } else {
+              console.log("This type is EB");	//DEBUG
+              console.log("Target is " + data.deploy.target.dev); //DEBUG
+              console.log("This may be enabled in a future version.");  //#HighHopes
+            }
           }
         } else {
           console.log('deployType must be S3 or EB');
@@ -241,7 +259,7 @@ exports.handler = function(event, context) {
       // if push to master branch, deploy to deploy.target.master
       if (githubEventObject.ref == 'refs/heads/master') {
         boolPusher=true;
-        //console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
+        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
 
         // Get the archive url
         getArchive(
