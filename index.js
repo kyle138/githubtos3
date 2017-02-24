@@ -18,22 +18,10 @@ var requestDataString = '';
 var firstEntry = '';
 var extractedTotal = uploadedCount = 0;
 
-function getSNSMessageObject(msgString) {
-    var x = msgString.replace(/\\/g,'');
-    console.log("SNSMessageObject deslashed: "+x); //DEBUG
-    var y = x.substring(1,x.length-1);
-    console.log("SNSMessageObject dequoted: "+y); //DEBUG
-    var z = JSON.parse(y);
-    console.log('SNSMessageObject: ', JSON.stringify(z,null,2));  //DEBUG
-    return z;
-}
-
 exports.handler = function(event, context) {
     console.log('Version: ','2.0.11 (debug)');    //DEBUG
     console.log('Received event:', JSON.stringify(event,null,2)); //DEBUG
     var githubEventObject = JSON.parse(event.Records[0].Sns.Message);
-//    var githubEventString = JSON.stringify(event.Records[0].Sns.Message);
-//    var githubEventObject = getSNSMessageObject(githubEventString);
 
     //console.log("received GitHub event:", githubEventString); //DEBUG
 
