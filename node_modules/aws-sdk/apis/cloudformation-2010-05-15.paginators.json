@@ -5,6 +5,11 @@
       "output_token": "NextToken",
       "result_key": "StackEvents"
     },
+    "DescribeStackResourceDrifts": {
+      "input_token": "NextToken",
+      "limit_key": "MaxResults",
+      "output_token": "NextToken"
+    },
     "DescribeStackResources": {
       "result_key": "StackResources"
     },
@@ -12,6 +17,16 @@
       "input_token": "NextToken",
       "output_token": "NextToken",
       "result_key": "Stacks"
+    },
+    "ListExports": {
+      "input_token": "NextToken",
+      "output_token": "NextToken",
+      "result_key": "Exports"
+    },
+    "ListImports": {
+      "input_token": "NextToken",
+      "output_token": "NextToken",
+      "result_key": "Imports"
     },
     "ListStackResources": {
       "input_token": "NextToken",
