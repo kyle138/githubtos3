@@ -1,13 +1,15 @@
-var GitHubApi = require('@octokit/rest');
-var github = new GitHubApi({
+const GitHubApi = require('@octokit/rest');
+const github = new GitHubApi({
     version: '3.0.0'
 });
-var https = require('https');
-var fs = require('fs');
-var StreamZip = require('node-stream-zip');
-var mime = require('mime');
-var aws = require('aws-sdk');
-var S3 = new aws.S3({apiVersion: '2006-03-01'});
+const https = require('https');
+const fs = require('fs');
+const StreamZip = require('node-stream-zip');
+//var mime = require('mime');
+const aws = require('aws-sdk');
+const awsS3client = new aws.S3({apiVersion: '2006-03-01'});
+const S3 = require('s3-client');
+const s3Client = S3.createClient({s3Client: awsS3client});
 
 var boolIssue = boolPusher = false;
 var file;
@@ -23,7 +25,7 @@ var github_token = {
 github.authenticate(github_token);
 
 exports.handler = function(event, context) {
-    console.log('Version: ','2.0.2');    //DEBUG
+    console.log('Version: ','3.0.0');    //DEBUG
     console.log('Received event:', JSON.stringify(event,null,2)); //DEBUG
     var githubEventObject = JSON.parse(event.Records[0].Sns.Message);
 
