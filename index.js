@@ -1,4 +1,4 @@
-var GitHubApi = require('github');
+var GitHubApi = require('@octokit/rest');
 var github = new GitHubApi({
     version: '3.0.0'
 });
