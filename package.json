@@ -4,8 +4,8 @@
   "description": "Lambdabot that responds to GitHub pushes to deploy to S3.",
   "main": "index.js",
   "dependencies": {
+    "@octokit/rest": "^16.23.4",
     "aws-sdk": "^2.437.0",
-    "github": "^0.2.4",
     "https": "^1.0.0",
     "lodash": "^4.17.11",
     "mime": "^2.4.2",
