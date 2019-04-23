@@ -1,7 +1,9 @@
+'use strict';
+
+//
+// add/configure modules
 const GitHubApi = require('@octokit/rest');
-const github = new GitHubApi({
-    version: '3.0.0'
-});
+
 const https = require('https');
 const fs = require('fs');
 const StreamZip = require('node-stream-zip');
@@ -11,25 +13,35 @@ const awsS3client = new aws.S3({apiVersion: '2006-03-01'});
 const S3 = require('s3-client');
 const s3Client = S3.createClient({s3Client: awsS3client});
 
+//
+// Initialize initial variables, initially. -KM (My initials)
 var boolIssue = boolPusher = false;
 var file;
 var requestDataString = '';
 var firstEntry = '';
 var extractedTotal = uploadedCount = 0;
 
-// Authenticate to github
-var github_token = {
-  "type": "oauth",
-  "token": process.env.github_token
-};
-github.authenticate(github_token);
+//
+// Authenticate to github for API calls to private repos
+// Get token from process.env.github_token
+function authenticateGitHub(token) {
+  return new Promise(function(resolve, reject) {
+    if(!token) {
+      return reject("AuthenticateGitHub(): token is a required argument.");
+    } else {
+      return resolve( new GitHubApi({
+          auth: process.env.github_token,
+          userAgent: 'octokit/rest.js v16.23.4'
+        })
+      );  // End return resolve
+    } // End if token
+  }) // End Promise
+} // End authenticateGitHub
 
-exports.handler = function(event, context) {
-    console.log('Version: ','3.0.0');    //DEBUG
+exports.handler = (event, context, callback) => {
+    console.log('Version: ','3.0.0');
     console.log('Received event:', JSON.stringify(event,null,2)); //DEBUG
-    var githubEventObject = JSON.parse(event.Records[0].Sns.Message);
-
-    //console.log("received GitHub event:", githubEventString); //DEBUG
+    var githubEventObject = JSON.parse(event.body);
 
     function getDeployJSON(err, user, repo, ref, callback) {
       console.log("getDeployJSON::user " + user); //DEBUG
@@ -254,41 +266,66 @@ exports.handler = function(event, context) {
       context.done(); // deployEB may be added at a future date.
     } // End deployEB
 
-    // main function
-    // Checks if a push has been made to the master branch, if so, deploy to S3
-    if (githubEventObject.hasOwnProperty('pusher')) {
-      // if push to master branch, deploy to deploy.target.master
-      if (githubEventObject.ref == 'refs/heads/master') {
-        boolPusher=true;
-        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
+// handleError
+// Output error information
+function handleError(method, message, context) {
+  return new Promise(function(resolve) {
+    var errorMessage = {
+      lambdaFunctionName: context.functionName,
+      eventTimeUTC: new Date().toUTCString(),
+      methodName: method,
+      error: message
+    };  // End errorMessage
+    console.log("handleError: "+JSON.stringify(errorMessage));  // DEBUG:
 
-        // Get the archive url
-        getArchive(
-          githubEventObject.repository.owner.name,
-          githubEventObject.repository.name,
-          githubEventObject.ref,
-          getDeployJSON
-        );
+    var params = {
+      TableName: 'errorLogs',
+      Item: {
+        // DDB ttl to expire item after 1 month
+        ttl: Math.floor(Date.now() / 1000) + 2592000,
+        data: errorObject
       }
-      // If push to dev branch, deploy to deploy.target.dev
-      if (githubEventObject.ref == 'refs/heads/dev') {
-        boolPusher=true;
-        console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
+    };  // End params
 
-        // Get the archive url
-        getArchive(
-          githubEventObject.repository.owner.name,
-          githubEventObject.repository.name,
-          githubEventObject.ref,
-          getDeployJSON
-        );
+    // Load the DDB client and write the errorLogs
+    new AWS.DynamoDB.DocumentClient().put(params, function(err, data) {
+      if (err) console.log("Unable to add DDB item to errorLogs: "+JSON.stringify(err, null, 2));
+      return resolve();
+    }); // End DDB.put
+  }); // End Promise
+} // End handleError
+
+
+// ************************************************************
+//
+// main function
+exports.handler = async (event, context, callback) => {
+  console.log('Version: ','3.0.0');
+  console.log('Received event:', JSON.stringify(event,null,2)); //DEBUG
+
+  // GitHub event is contained in event.body as stringified json.
+  var githubEventObject = JSON.parse(event.body);
+
+  // Checks if a push has been made to the master branch, if so, deploy to S3
+  if (githubEventObject.hasOwnProperty('pusher')) {
+    // if push to master/dev branch, deploy to deploy.target.master
+    if (githubEventObject.ref == 'refs/heads/master' || githubEventObject.ref == 'refs/heads/dev') {
+      console.log("githubEventObject.ref : ", githubEventObject.ref); //DEBUG
+
+      if(!process.env.github_token) {
+        // Required github_token environment variable is not set, fatal
+        await handleError("handler", "Missing github_token env var.", context);
+        callback(null, "FATAL: Missing github_token.");
+      } else {
+        var github = await authenticateGitHub(process.env.github_token);
       }
-    }  // End If(Pusher)
-
-  // Nothing, just close it. Honestly this should never happen if the
-  // GitHub webhooks are configured properly.
-  if(!boolIssue&&!boolPusher) {
-    console.log("Nothing to do, EOL");
-    context.succeed();
-  }
+      // Get the archive url
+      getArchive(
+        githubEventObject.repository.owner.name,
+        githubEventObject.repository.name,
+        githubEventObject.ref,
+        getDeployJSON
+      );
+    }
+  }  // End If(Pusher)
 };  // End exports.handler
