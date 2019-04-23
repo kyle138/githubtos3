@@ -18,6 +18,7 @@ AWS.util.update(AWS.DynamoDB.prototype, {
    */
   checkCrc32: function checkCrc32(resp) {
     if (!resp.httpResponse.streaming && !resp.request.service.crc32IsValid(resp)) {
+      resp.data = null;
       resp.error = AWS.util.error(new Error(), {
         code: 'CRC32CheckFailed',
         message: 'CRC32 integrity check failed',
@@ -46,7 +47,12 @@ AWS.util.update(AWS.DynamoDB.prototype, {
    * @api private
    */
   retryDelays: function retryDelays(retryCount) {
-    var delay = retryCount > 0 ? (50 * Math.pow(2, retryCount - 1)) : 0;
+    var retryDelayOptions = AWS.util.copy(this.config.retryDelayOptions);
+
+    if (typeof retryDelayOptions.base !== 'number') {
+        retryDelayOptions.base = 50; // default for dynamodb
+    }
+    var delay = AWS.util.calculateRetryDelay(retryCount, retryDelayOptions);
     return delay;
   }
 });
