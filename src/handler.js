@@ -160,7 +160,7 @@ function genResObj200(message) {
     var res200 = {
       statusCode: '200',
       body: JSON.stringify({"response": message}),
-      header: {
+      headers: {
         'Content-Type': 'application/json',
       }
     };
