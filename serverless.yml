@@ -1,0 +1,46 @@
+
+service: SLS-GithubToS3
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  stage: v1
+  region: us-east-1
+
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:ListBucket"
+        - "s3:GetBucketLocation"
+        - "s3:PutObject"
+        - "s3:GetObject"
+        - "s3:DeleteObject"
+      Resource:
+        - "arn:aws:s3:::www.cathymunz.com*"
+        - "arn:aws:s3:::dev.cathymunz.com*"
+        - "arn:aws:s3:::githubtos3.kylemunz.com*"
+        - "arn:aws:s3:::githubtos3-dev.kylemunz.com*"
+        - "arn:aws:s3:::www.kylemunz.com*"
+        - "arn:aws:s3:::dev.kylemunz.com*"
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:DescribeTable"
+        - "dynamodb:PutItem"
+        - "dynamodb:UpdateItem"
+        - "dynamodb:Query"
+        - "dynamodb:Scan"
+      Resource:
+        - "arn:aws:dynamodb:us-west-2:304786516436:table/errorLogs"
+
+
+functions:
+  githubToS3:
+    handler: src/handler.githubToS3
+    description: Lambda bot triggered by Github webhook to APIG to deploy to S3
+    environment:
+      github_token: 148f1f333a5fc2d2624c9eddc8c788c07e149176
+    events:
+      - http:
+          path: ghWebhook
+          method: post
+          cors: true
