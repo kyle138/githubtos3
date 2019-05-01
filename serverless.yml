@@ -1,13 +1,21 @@
 
 service: SLS-GithubToS3
 
+custom:
+  # Provide Github Personal Access Token here
+  # https://github.com/settings/tokens
+  github_personal_access_token: 148f1f333a5fc2d2624c9eddc8c788c07e149176
+
 provider:
   name: aws
   runtime: nodejs8.10
+  # Stage name goes here (eg: dev/prod/v1)
   stage: v1
+  # Make sure this matches the region you are using
   region: us-east-1
 
   iamRoleStatements:
+    # Required to be able to sync files from the repo to the S3 bucket
     - Effect: "Allow"
       Action:
         - "s3:ListBucket"
@@ -15,6 +23,7 @@ provider:
         - "s3:PutObject"
         - "s3:GetObject"
         - "s3:DeleteObject"
+      # List all S3 buckets this should have permissions to deploy to below
       Resource:
         - "arn:aws:s3:::www.cathymunz.com*"
         - "arn:aws:s3:::dev.cathymunz.com*"
@@ -22,6 +31,8 @@ provider:
         - "arn:aws:s3:::githubtos3-dev.kylemunz.com*"
         - "arn:aws:s3:::www.kylemunz.com*"
         - "arn:aws:s3:::dev.kylemunz.com*"
+    # Uncomment the below if you already have an errorLogs table in dynamoDB
+    # (Note) Need to document errorLogs some day
     - Effect: "Allow"
       Action:
         - "dynamodb:DescribeTable"
@@ -30,15 +41,21 @@ provider:
         - "dynamodb:Query"
         - "dynamodb:Scan"
       Resource:
-        - "arn:aws:dynamodb:us-west-2:304786516436:table/errorLogs"
+        - 'Fn::Join':
+          - ':'
+          -
+            - 'arn:aws:dynamodb:us-west-2'
+            - Ref: 'AWS::AccountId'
+            - 'table/errorLogs'
 
-
+# Define Lambda functions
 functions:
+  # Deployer function
   deployer:
     handler: src/handler.deployer
     description: Lambda bot triggered by Github webhook to APIG to deploy to S3
     environment:
-      github_token: 148f1f333a5fc2d2624c9eddc8c788c07e149176
+      github_token: ${self:custom.github_personal_access_token}
     events:
       - http:
           path: ghWebhook
