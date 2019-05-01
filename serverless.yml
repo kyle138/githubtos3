@@ -4,13 +4,13 @@ service: SLS-GithubToS3
 custom:
   # Provide Github Personal Access Token here
   # https://github.com/settings/tokens
-  github_personal_access_token: ${file(./github_token.json):${opt:aws-profile}.github_token}
+  github_personal_access_token: ${file(./config/github_token.json):${opt:aws-profile}.github_token}
 
 provider:
   name: aws
   runtime: nodejs8.10
   memorySize: 128
-  timeout: 300
+  timeout: 30
   # Stage name goes here (eg: dev/prod/v1)
   stage: v1
   # Make sure this matches the region you are using
