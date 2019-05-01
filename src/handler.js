@@ -203,7 +203,7 @@ function handleError(method, message, context) {
 // ****************************************************
 //
 // Main function begins here
-module.exports.deploy = async (event, context, callback) => {
+module.exports.deployer = async (event, context, callback) => {
   console.log('Received event:', JSON.stringify(event, null, 2)); // DEBUG
 
   // GitHub event is contained in event.body as a stringified JSON
