@@ -1,0 +1,8 @@
+{
+  "aws-profile1": {
+    "github_token": "SuperSecretPersonalAccessToken1"
+  },
+  "aws-profile2": {
+    "github_token": "SuperSecretPersonalAccessToken2"
+  }
+}
