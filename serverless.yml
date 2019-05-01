@@ -9,6 +9,8 @@ custom:
 provider:
   name: aws
   runtime: nodejs8.10
+  memorySize: 128
+  timeout: 300
   # Stage name goes here (eg: dev/prod/v1)
   stage: v1
   # Make sure this matches the region you are using
