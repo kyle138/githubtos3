@@ -4,7 +4,7 @@ service: SLS-GithubToS3
 custom:
   # Provide Github Personal Access Token here
   # https://github.com/settings/tokens
-  github_personal_access_token: 148f1f333a5fc2d2624c9eddc8c788c07e149176
+  github_personal_access_token: ${file(./github_token.json):${opt:aws-profile}.github_token}
 
 provider:
   name: aws
