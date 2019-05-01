@@ -34,7 +34,7 @@ provider:
 
 
 functions:
-  githubToS3:
+  deployer:
     handler: src/handler.deployer
     description: Lambda bot triggered by Github webhook to APIG to deploy to S3
     environment:
