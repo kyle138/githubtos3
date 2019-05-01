@@ -160,7 +160,7 @@ function genResObj200(message) {
     var res200 = {
       statusCode: '200',
       body: JSON.stringify({"response": message}),
-      header: {
+      headers: {
         'Content-Type': 'application/json',
       }
     };
@@ -203,7 +203,7 @@ function handleError(method, message, context) {
 // ****************************************************
 //
 // Main function begins here
-exports.handler = async (event, context, callback) => {
+module.exports.deployer = async (event, context, callback) => {
   console.log('Received event:', JSON.stringify(event, null, 2)); // DEBUG
 
   // GitHub event is contained in event.body as a stringified JSON
