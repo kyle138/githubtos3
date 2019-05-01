@@ -46,7 +46,8 @@ provider:
         - 'Fn::Join':
           - ':'
           -
-            - 'arn:aws:dynamodb:us-west-2'
+            - 'arn:aws:dynamodb'
+            - Ref: 'AWS::Region'
             - Ref: 'AWS::AccountId'
             - 'table/errorLogs'
 
