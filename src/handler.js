@@ -275,6 +275,12 @@ module.exports.deployer = async (event, context, callback) => {
     return callback(null, await genResObj400("No X-GitHub-Event header found on request."));
   }
 
+  // Check if event is a 'ping' type for testing.
+  if(event.headers['X-GitHub-Event'] != "ping") {
+    console.log(`X-GitHub-Event is of type ${event.headers['X-GitHub-Event']}, Whatever.`); // DEBUG:
+    return callback(null, await genResObj200("I see you have the machine that goes PING!"));
+  }
+
   // Check if event is a 'push' type since that's all we care about.
   if(event.headers['X-GitHub-Event'] != "push") {
     console.log(`githubEvent is of type ${event.headers['X-GitHub-Event']} and we just don't care.`); // DEBUG:
