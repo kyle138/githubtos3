@@ -1,10 +1,11 @@
 'use strict';
-console.log('Loading function: Version 3.0.0');
+console.log('Loading function: Version 3.0.1');
 
 //
 // add/configure modules
 const fs = require('fs');
 const util = require('util');
+const crypto = require('crypto');
 const GitHubApi = require('@octokit/rest');
 const StreamZip = require('node-stream-zip');
 const AWS = require('aws-sdk');
@@ -17,6 +18,12 @@ const s3Client = S3.createClient({s3Client: awsS3client});
 // Wrappers for built in fs writeFile and readFile functions to return a promise
 const fs_writeFile = util.promisify(fs.writeFile);
 const fs_readFile = util.promisify(fs.readFile);
+
+//
+// Sign the request body
+function signRequestBody(key, body) {
+  return `sha1=${crypto.createHmac('sha1', key).update(body, 'utf-8').digest('hex')}`;
+} // End signRequestBody
 
 //
 // Extract the archive
@@ -166,7 +173,25 @@ function genResObj200(message) {
     };
     return resolve(res200);
   }); // End Promise
-} // End generateResponseObject200
+} // End genResObj200
+
+//
+// genResObj400
+// Generates the http 400 response code to feed back through APIG
+function genResObj400(message) {
+  return new Promise( (resolve,reject) => {
+    // Default Negative response
+    message = (message===null) ? "That's a negative Ghost rider, the pattern is full." : message;
+    var res400 = {
+      statusCode: '400',
+      body: JSON.stringify({"response": message}),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+    return resolve(res400);
+  }); // End Promise
+} // End genResObj400
 
 //
 // handleError
@@ -199,80 +224,116 @@ function handleError(method, message, context) {
   }); // End Promise
 } // End handleError
 
-
+// ****************************************************
 // ****************************************************
 //
 // Main function begins here
 module.exports.deployer = async (event, context, callback) => {
   console.log('Received event:', JSON.stringify(event, null, 2)); // DEBUG
 
-  // GitHub event is contained in event.body as a stringified JSON
-  var githubEventObject = JSON.parse(event.body);
+  // GitHub event is contained in event.body as a stringified JSON, so parse it.
+  const githubEventObject = JSON.parse(event.body);
+  console.log('githubEventObject: ', JSON.stringify(githubEventObject, null, 2)); // DEBUG: yeah I parsed it just to stringify it
 
-  // Checks if this event is actually a push event, we don't care about other event types
-  if (githubEventObject.hasOwnProperty('pusher')) {
+  // Check if a github personal access token has been set as an environment variable.
+  // Without this we can't retrieve private repos, this is fatal.
+  if(!process.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
+    console.log("process.env.GITHUB_PERSONAL_ACCESS_TOKEN missing");  // DEBUG:
+    await handleError("if(process.env.GITHUB_PERSONAL_ACCESS_TOKEN)","Missing GITHUB_PERSONAL_ACCESS_TOKEN.",context);
+    return callback(null, await genResObj400("Missing process.env.GITHUB_PERSONAL_ACCESS_TOKEN."));
+  }
 
-    // Check if push was to master or dev branch, we don't care about other branches
-    if (githubEventObject.ref == 'refs/heads/master' || githubEventObject.ref == 'refs/heads/dev') {
-      console.log(`githubEventObject.ref : ${githubEventObject.ref}`); //DEBUG
+  // Check if a github webhook secret token has been set as an environment variable.
+  // Without this we can't compare the event signature sent by GitHub
+  if(!process.env.GITHUB_WEBHOOK_SECRET) {
+    console.log("process.env.GITHUB_WEBHOOK_SECRET missing"); // DEBUG:
+    await handleError("if(process.env.GITHUB_WEBHOOK_SECRET)","Missing GITHUB_WEBHOOK_SECRET",context);
+    return callback(null, await genResObj400("Missing process.env.GITHUB_WEBHOOK_SECRET."));
+  }
 
-      // Check if required environment variable github_token is set.
-      // Without this we can't retrieve private repos, this is fatal.
-      if(!process.env.github_token) {
-        // await handleError("handler", "Missing github_token env var.", context);
-        console.log("process.env.github_token missing");  // DEBUG:
-        await handleError("if(process.env.github_token)","Missing github_token.",context);
-        callback(null, "FATAL: Missing github_token.");
-      } else {
-        try {
+  // Check if event has X-Hub-Signature header
+  // Without this we can't verify GitHub actually sent this event, IT COULD BE ANYBODY ZOMBGOSH!!!!
+  if(!event.headers.hasOwnProperty('X-Hub-Signature')) {
+    console.log("No X-Hub-Signature found on request"); // DEBUG:
+    await handleError("if(X-Hub-Signature)","Missing X-Hub-Signature header.",context);
+    return callback(null, await genResObj400("No X-Hub-Signature found on request."));
+  }
 
-          // Create authorized github client (auth allows access to private repos)
-          var github = new GitHubApi({
-            auth: process.env.github_token
-          });
+  // Check if the event signatures match
+  // If they don't match then somebody other than GitHub sent this event.
+  if(event.headers['X-Hub-Signature'] !== signRequestBody(process.env.GITHUB_WEBHOOK_SECRET, event.body)) {
+    console.log("X-Hub-Signature does not match our signature."); // DEBUG:
+    await handleError("if(X-Hub-Signature !== ourSignature)","X-Hub-Signature does not match our signature.",context);
+    return callback(null, await genResObj400("THAT'S MY PURSE! I DON'T KNOW YOU!"));
+  }
 
-          // Retrieve archive of repo from github
-          // getArchiveLink previously only returned the link used to d/l the zipball
-          // It still does that but now it also returns the entire archive as well? ¯\_(ツ)_/¯
-          // It may be depricated and replaced by getArchive() later
-          // So why am I still using getArchiveLink() you ask?
-          // Because getArchive() doesn't exist yet
-          // Yeah, I'm as impressed with GH as you are
-          const ghArchive = await github.repos.getArchiveLink({
-            owner: githubEventObject.repository.owner.name,
-            repo: githubEventObject.repository.name,
-            archive_format: 'zipball',
-            ref: githubEventObject.ref
-          });
+  // Check if event has X-GitHub-Event header
+  // We use this later to determine if this is an event we care about.
+  if(!event.headers.hasOwnProperty('X-GitHub-Event')) {
+    console.log("No X-GitHub-Event found on requst");
+    await handleError("if(X-GitHub-Event)","Missing X-GitHub-Event header.",context);
+    return callback(null, await genResObj400("No X-GitHub-Event header found on request."));
+  }
 
-          // Save the repo archive locally in the /tmp directory
-          await fs_writeFile('/tmp/github.zip', ghArchive.data);
+  // Check if event is a 'push' type since that's all we care about.
+  if(event.headers['X-GitHub-Event'] != "push") {
+    console.log(`githubEvent is of type ${event.headers['X-GitHub-Event']} and we just don't care.`); // DEBUG:
+    return callback(null, await genResObj400("I told you I only wanted push events."));
+  }
 
-          // Extract the archive and return the directory it was extrated into
-          const extractedTo = await extractArchive('/tmp/github.zip');
+  // Check if the 'push' is to the master or dev branches since that's all we care about.
+  if(githubEventObject.ref != 'refs/heads/master' && githubEventObject.ref != 'refs/heads/dev') {
+    console.log(`githubEventObject.ref is to the ${githubEventObject.ref} branch and we just don't care.`); // DEBUG:
+    return callback(null, await genResObj400("This just isn't anything I care about."));
+  }
 
-          // Get deployment info from deploy.json
-          const deployObj = await getDeployJSON(extractedTo);
+  // Ok, now that all of the validation checks are out of the way...
+  try {
 
-          // Test if type within deploy.json is supported
-          if(deployObj.deploy.type == "S3") {
-            console.log("Deploy type: S3. Ok to proceed.");
-            var branch = githubEventObject.ref.split('refs/heads/')[1];
-            await deployS3(extractedTo, deployObj.deploy.target[branch]);
-            callback(null, await genResObj200("Alright, alright, alright."));
-          } else {
-            console.log(`Invalid deploy type: ${deployObj.deploy.type}`);
-            await handleError("Invalid deploy type.",deployObj.deploy.type,context);
-            callback(null, await genResObj200("Invalid deploy type."));
-          }
+    // Create authorized github client (auth allows access to private repos)
+    var github = new GitHubApi({
+      auth: process.env.GITHUB_PERSONAL_ACCESS_TOKEN
+    });
 
-        } catch(err) {
-          console.log("Error Caught: ",err);  // DEBUG:
-          await handleError("Error Caught", err, context);
-          callback(null, await genResObj200("Deploy failed."));
-        }
+    // Retrieve archive of repo from github
+    // getArchiveLink previously only returned the link used to d/l the zipball
+    // It still does that but now it also returns the entire archive as well? ¯\_(ツ)_/¯
+    // It may be depricated and replaced by getArchive() later
+    // So why am I still using getArchiveLink() you ask?
+    // Because getArchive() doesn't exist yet
+    // Yeah, I'm as impressed with this as you are
+    const ghArchive = await github.repos.getArchiveLink({
+      owner: githubEventObject.repository.owner.name,
+      repo: githubEventObject.repository.name,
+      archive_format: 'zipball',
+      ref: githubEventObject.ref
+    });
 
-      } // End if/else proc.env.github_token
-    } // End is master/dev
-  } // End hasOwnProperty(pusher)
+    // Save the repo archive locally in the /tmp directory
+    await fs_writeFile('/tmp/github.zip', ghArchive.data);
+
+    // Extract the archive and return the directory it was extrated into
+    const extractedTo = await extractArchive('/tmp/github.zip');
+
+    // Get deployment info from deploy.json
+    const deployObj = await getDeployJSON(extractedTo);
+
+    // Test if type within deploy.json is supported
+    if(deployObj.deploy.type == "S3") {
+      console.log("Deploy type: S3. Ok to proceed.");
+      var branch = githubEventObject.ref.split('refs/heads/')[1];
+      await deployS3(extractedTo, deployObj.deploy.target[branch]);
+      callback(null, await genResObj200("Alright, alright, alright."));
+    } else {
+      console.log(`Invalid deploy type: ${deployObj.deploy.type}`);
+      await handleError("Invalid deploy type.",deployObj.deploy.type,context);
+      callback(null, await genResObj200("Invalid deploy type."));
+    }
+
+  } catch(err) {
+    console.log("Error Caught: ",err);  // DEBUG:
+    await handleError("Error Caught", err, context);
+    callback(null, await genResObj200("Deploy failed."));
+  }
+
 };  // End exports.handler
