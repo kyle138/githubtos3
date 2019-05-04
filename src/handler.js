@@ -276,7 +276,7 @@ module.exports.deployer = async (event, context, callback) => {
   }
 
   // Check if event is a 'ping' type for testing.
-  if(event.headers['X-GitHub-Event'] != "ping") {
+  if(event.headers['X-GitHub-Event'] == "ping") {
     console.log(`X-GitHub-Event is of type ${event.headers['X-GitHub-Event']}, Whatever.`); // DEBUG:
     return callback(null, await genResObj200("I see you have the machine that goes PING!"));
   }
