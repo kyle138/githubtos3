@@ -51,8 +51,8 @@ functions:
     handler: src/handler.deployer
     description: Lambda bot triggered by Github webhook to APIG to deploy to S3
     environment:
-      - GITHUB_PERSONAL_ACCESS_TOKEN: ${self:custom.gts3_config.github_personal_access_token}
-      - GITHUB_WEBHOOK_SECRET: ${self:custom.gts3_config.github_webhook_secret}
+      GITHUB_WEBHOOK_SECRET: ${self:custom.gts3_config.github_webhook_secret}
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${self:custom.gts3_config.github_personal_access_token}
     events:
       - http:
           path: ghWebhook
