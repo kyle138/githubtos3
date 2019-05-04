@@ -1,0 +1,20 @@
+{
+  "aws-profile1": {
+    "github_personal_access_token": "SuperSecretPersonalAccessToken1",
+    "github_webhook_secret": "UseTheSameWebhookSecretForAllReposDeployedToThisAWSAcct",
+    "s3_targets": [
+      "arn:aws:s3:::TheBucketYouAreDeployingTo",
+      "arn:aws:s3:::TheNextBucketYouAreDeployingTo",
+      "arn:aws:s3:::JustListThemAllHere"
+    ]
+  },
+  "aws-profile2": {
+    "github_personal_access_token": "SuperSecretPersonalAccessToken2",
+    "github_webhook_secret": "UseTheSameWebhookSecretForAllReposDeployedToThisAWSAcct",
+    "s3_targets": [
+      "arn:aws:s3:::TheBucketYouAreDeployingTo",
+      "arn:aws:s3:::TheNextBucketYouAreDeployingTo",
+      "arn:aws:s3:::JustListThemAllHere"
+    ]
+  }
+}
