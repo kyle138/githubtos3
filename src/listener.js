@@ -1,23 +1,12 @@
 'use strict';
-console.log('Loading function: Version 3.0.1');
+console.log('Loading function: Version 1.0.0');
 
 //
 // add/configure modules
-const fs = require('fs');
-const util = require('util');
 const crypto = require('crypto');
 const GitHubApi = require('@octokit/rest');
-const StreamZip = require('node-stream-zip');
 const AWS = require('aws-sdk');
-const awsS3client = new AWS.S3({apiVersion: '2006-03-01'});
-const S3 = require('s3-client');
-const s3Client = S3.createClient({s3Client: awsS3client});
-
-//
-// Begin promisification process...
-// Wrappers for built in fs writeFile and readFile functions to return a promise
-const fs_writeFile = util.promisify(fs.writeFile);
-const fs_readFile = util.promisify(fs.readFile);
+const SNS = new AWS.SNS();
 
 //
 // Sign the request body
@@ -26,76 +15,55 @@ function signRequestBody(key, body) {
 } // End signRequestBody
 
 //
-// Extract the archive
-function extractArchive(archive) {
-  return new Promise( (resolve, reject) => {
-    if(!archive) {
-      console.log("extractArchive: no archive");  // DEBUG:
-      return reject("extractArchive(): archive is a required argument.");
-    } else {
-      const zip = new StreamZip({
-        file: archive,
-        storeEntries: true
-      });
-
-      zip.on('error', err => {
-        console.log("extractArchive::zip error: "+ err);
-        return reject("Zip error");
-      });
-
-      zip.on('ready', () => {
-        console.log('extractArchive::Entries read: '+ zip.entriesCount);  // DEBUG:
-
-        // The first entry should be the subdirectory added by github.
-        // Capture its name here for the return
-        // This will be used later to know where the files were extracted to
-        var extractionDestination = '/tmp/'+Object.keys(zip.entries())[0];
-
-        // Extract everything to /tmp, be mindful of the 500MB cumulative limit
-        zip.extract(null, '/tmp', (err, count) => {
-          if(err) {
-            console.log("extractArchive::zip.extract error:: "+err);
-            return reject("Zip Extract error.");
-          } else {
-            console.log(`extractArchive::Extracted ${count} entries to ${extractionDestination}`);  // DEBUG:
-            zip.close();
-            return resolve(extractionDestination);
-          } //Commencing ridiculously long closing bracket sequence...
-        }); // End zip.extract
-      }); // End zip.on(ready)
-    } // End if archive
-  }); // End Promise
-} // End extractArchive
-
-//
 // getDeployJSON
-// Open and parse the deploy.json provided in the repo
-// 'location' is the folder the repo archive has been extracted to
-function getDeployJSON(location) {
+// Retrieve the deploy.json from GitHub for this repo/branch
+// Parameters:
+// {
+//  pat: GITHUB_PERSONAL_ACCESS_TOKEN,
+//  owner: Owner name for this GitHub repository
+//  repo: Repository name
+//  ref: 'refs/heads/master' or 'refs/heads/dev' *(OPTIONAL) Defaults to master
+//  }
+function getDeployJSON(params) {
   return new Promise( (resolve, reject) => {
-    if(!location) {
-      console.log("getDeployJSON: no location"); // DEBUG:
-      return reject("getDeployJSON(): location is a required argument.");
+    if(!params.pat || !params.owner || !params.repo) {
+      console.log(`getDeployJSON: PAT: ${params.pat} Owner:${params.owner} Repo:${params.repo}`);  // DEBUG:
+      return reject("getDeployJSON(): PAT, Owner, and Repo are required fields.")
     } else {
-      fs_readFile(location+'deploy.json', {encoding: 'utf8'})
-      .then((data) => {
-        console.log(`getDeployJSON.readFile.data: ${data}`);  // DEBUG:
-        validateDeployJSON(JSON.parse(data))
+
+      // Create authorized github client (auth allows access to private repos)
+      var github = new GitHubApi({
+        auth: params.pat
+      });
+
+      var gCparams = {
+        owner: params.owner,
+        repo: params.repo,
+        path: 'deploy.json'
+      };
+      // If ref not provided default to master
+      gCparams.ref = (params.ref=='refs/heads/dev') ? params.ref : 'refs/heads/master';
+      github.repos.getContents(gCparams)
+      .then(result => {
+        // content will be base64 encoded
+        var content = Buffer.from(result.data.content, 'base64').toString();
+        console.log(`getDeployJSON:content: ${content}`)
+        validateDeployJSON(JSON.parse(content))
         .then(() => {
           console.log("getDeployJSON:validateDeployJSON: checks out."); // DEBUG:
-          return resolve(JSON.parse(data));
+          return resolve(JSON.parse(content));
         })
         .catch(() => {
-          console.log("getDeployJSON:validateDeployJSON: invalid format.");// DEBUG:
-          return reject("Invalid deploy.json format");
+          console.log("getDeployJSON:validateDeployJSON: invalid format."); // DEBUG:
+          return reject("Invalid deploy.json format.");
         });
       })
       .catch((err) => {
-        console.log("getDeployJSON.readFile Error: ", err);
-        return reject("getDeployJSON.readFile Error.");
+        console.log("getDeployJSON:github.repos.getContents Error: ", err); // DEBUG:
+        return reject("getDeployJSON:github.repos.getContents Error.")
       });
     }
-  });  // End Promise
+  }); // End Promise
 } // End getDeployJSON
 
 //
@@ -123,39 +91,36 @@ function validateDeployJSON(deployObject) {
 } // End validateDeployJSON
 
 //
-// deployS3
-// Sync the extracted folder to the S3 bucket
-function deployS3(source, destination) {
+// publishToSns
+// Publish the GitHub push event to SNS to trigger the deployer
+// Parameters:
+// data - the data to publish, duh
+// region - the AWS region of the SNS topic to publish to
+// acctId - the AWS account Id of the SNS topic to publish to
+function publishToSns(params) {
   return new Promise( (resolve,reject) => {
-    if(!source || !destination) {
-      console.log("deployS3: source or destination missing.");
-      return reject("deployS3(): source and destination are both required arguments.");
+    if(!params.data || !params.region || !params.acctId) {
+      console.log(`publishToSns: Region: ${params.region} AcctId:${params.acctId} Data:${params.data}`);  // DEBUG:
+      return reject("publishToSns(): Data, Region, and AcctId are required fields.");
     } else {
-      var params = {
-        localDir: source,
-        deleteRemoved: true,
-        s3Params: {
-          Bucket: destination
-        }
-      }; // End params
-
-      var syncer = s3Client.uploadDir(params);
-
-      syncer.on('error', (err) => {
-        console.log("deployS3::s3Client.uploadDir error: ", err);
+      const pubParams = {
+        Message: JSON.stringify(params.data),
+        TopicArn: `arn:aws:sns:${params.region}:${params.acctId}:github-webhooks`
+      };
+      console.log("pubParams: "+JSON.stringify(pubParams,null,2));  // DEBUG:
+      SNS.publish(pubParams).promise()
+      .then(response => {
+        console.log("publishToSns:SNS.publish response: "+JSON.stringify(response,null,2)); // DEBUG:
+        return resolve(response);
+      })
+      .catch((err) => {
+        console.log(`publishToSns: Region: ${params.region} AcctId:${params.acctId} Data:${params.data}`);  // DEBUG:
+        console.log("publishToSns:SNS.publish Error: ", err); // DEBUG:
+        return reject("publishToSns:SNS.publish Error.")
       });
-
-      syncer.on('progress', () => {
-        console.log("deployS3::uploadDir progress", syncer.progressAmount, syncer.progressTotal);// DEBUG:
-      });
-
-      syncer.on('end', () => {
-        console.log("deployS3::uploadDir done."); // DEBUG:
-        return resolve();
-      }); // End syncer
-    } // End if source/destination
+    }
   }); // End Promise
-} // End deployS3
+} // end publishToSns
 
 //
 // genResObj200
@@ -228,7 +193,7 @@ function handleError(method, message, context) {
 // ****************************************************
 //
 // Main function begins here
-module.exports.deployer = async (event, context, callback) => {
+module.exports.handler = async (event, context, callback) => {
   console.log('Received event:', JSON.stringify(event, null, 2)); // DEBUG
 
   // GitHub event is contained in event.body as a stringified JSON, so parse it.
@@ -296,50 +261,34 @@ module.exports.deployer = async (event, context, callback) => {
   // Ok, now that all of the validation checks are out of the way...
   try {
 
-    // Create authorized github client (auth allows access to private repos)
-    var github = new GitHubApi({
-      auth: process.env.GITHUB_PERSONAL_ACCESS_TOKEN
-    });
-
-    // Retrieve archive of repo from github
-    // getArchiveLink previously only returned the link used to d/l the zipball
-    // It still does that but now it also returns the entire archive as well? ¯\_(ツ)_/¯
-    // It may be depricated and replaced by getArchive() later
-    // So why am I still using getArchiveLink() you ask?
-    // Because getArchive() doesn't exist yet
-    // Yeah, I'm as impressed with this as you are
-    const ghArchive = await github.repos.getArchiveLink({
+    // Retrieve the deploy.json for this repo/branch from GitHub
+    const deployObj = await getDeployJSON({
+      pat: process.env.GITHUB_PERSONAL_ACCESS_TOKEN,
       owner: githubEventObject.repository.owner.name,
       repo: githubEventObject.repository.name,
-      archive_format: 'zipball',
       ref: githubEventObject.ref
     });
 
-    // Save the repo archive locally in the /tmp directory
-    await fs_writeFile('/tmp/github.zip', ghArchive.data);
+    // Build the data the Deployer lambda needs
+    const deployData = {
+      repoName: githubEventObject.repository.name,
+      repoOwner: githubEventObject.repository.owner.name,
+      ref: githubEventObject.ref,
+      deploy: deployObj
+    };
 
-    // Extract the archive and return the directory it was extrated into
-    const extractedTo = await extractArchive('/tmp/github.zip');
+    const snsResponse = publishToSns({
+      region: context.invokedFunctionArn.split(":")[3],
+      acctId: context.invokedFunctionArn.split(":")[4],
+      data: deployData
+    });
 
-    // Get deployment info from deploy.json
-    const deployObj = await getDeployJSON(extractedTo);
-
-    // Test if type within deploy.json is supported
-    if(deployObj.deploy.type == "S3") {
-      console.log("Deploy type: S3. Ok to proceed.");
-      var branch = githubEventObject.ref.split('refs/heads/')[1];
-      await deployS3(extractedTo, deployObj.deploy.target[branch]);
-      callback(null, await genResObj200("Alright, alright, alright."));
-    } else {
-      console.log(`Invalid deploy type: ${deployObj.deploy.type}`);
-      await handleError("Invalid deploy type.",deployObj.deploy.type,context);
-      callback(null, await genResObj200("Invalid deploy type."));
-    }
+    callback(null, await genResObj200("Alright, alright, alright."));
 
   } catch(err) {
     console.log("Error Caught: ",err);  // DEBUG:
     await handleError("Error Caught", err, context);
-    callback(null, await genResObj200("Deploy failed."));
+    callback(null, await genResObj400("Deploy Failed."));
   }
 
 };  // End exports.handler
