@@ -188,7 +188,7 @@ module.exports.handler = async (event, context, callback) => {
     // Test if type within deploy.json is supported
     if(deployObj.deploy.type == "S3") {
       console.log("Deploy type: S3. Ok to proceed.");
-      var branch = githubEventObject.ref.split('refs/heads/')[1];
+      var branch = snsEventObject.ref.split('refs/heads/')[1];
       await deployS3(extractedTo, deployObj.deploy.target[branch]);
       callback(null, "Alright, alright, alright.");
     } else {

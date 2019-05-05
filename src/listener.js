@@ -105,14 +105,16 @@ function publishToSns(params) {
     } else {
       const pubParams = {
         Message: JSON.stringify(params.data),
-        TopicArn: `arn:aws:sns:${params.region}:${params.accountId}:github-webhooks`
+        TopicArn: `arn:aws:sns:${params.region}:${params.acctId}:github-webhooks`
       };
+      console.log("pubParams: "+JSON.stringify(pubParams,null,2));  // DEBUG:
       SNS.publish(pubParams).promise()
       .then(response => {
         console.log("publishToSns:SNS.publish response: "+JSON.stringify(response,null,2)); // DEBUG:
         return resolve(response);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.log(`publishToSns: Region: ${params.region} AcctId:${params.acctId} Data:${params.data}`);  // DEBUG:
         console.log("publishToSns:SNS.publish Error: ", err); // DEBUG:
         return reject("publishToSns:SNS.publish Error.")
       });
@@ -273,13 +275,12 @@ module.exports.handler = async (event, context, callback) => {
       repoOwner: githubEventObject.repository.owner.name,
       ref: githubEventObject.ref,
       deploy: deployObj
-      }
     };
 
     const snsResponse = publishToSns({
       region: context.invokedFunctionArn.split(":")[3],
       acctId: context.invokedFunctionArn.split(":")[4],
-      data: JSON.stringify(deployData)
+      data: deployData
     });
 
     callback(null, await genResObj200("Alright, alright, alright."));
@@ -289,5 +290,5 @@ module.exports.handler = async (event, context, callback) => {
     await handleError("Error Caught", err, context);
     callback(null, await genResObj400("Deploy Failed."));
   }
-  
+
 };  // End exports.handler
