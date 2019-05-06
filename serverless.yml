@@ -4,7 +4,7 @@ service: SLS-GithubToS3
 custom:
   # Provide Github Personal Access Token here
   # https://github.com/settings/tokens
-  github_personal_access_token: ${file(./config/github_token.json):${opt:aws-profile}.github_token}
+  gts3_config: ${file(./config/config.json):${opt:aws-profile}}
 
 provider:
   name: aws
@@ -15,6 +15,9 @@ provider:
   stage: v1
   # Make sure this matches the region you are using
   region: us-east-1
+  environment:
+    GITHUB_WEBHOOK_SECRET: ${self:custom.gts3_config.github_webhook_secret}
+    GITHUB_PERSONAL_ACCESS_TOKEN: ${self:custom.gts3_config.github_personal_access_token}
 
   iamRoleStatements:
     # Required to be able to sync files from the repo to the S3 bucket
@@ -26,13 +29,7 @@ provider:
         - "s3:GetObject"
         - "s3:DeleteObject"
       # List all S3 buckets this should have permissions to deploy to below
-      Resource:
-        - "arn:aws:s3:::www.cathymunz.com*"
-        - "arn:aws:s3:::dev.cathymunz.com*"
-        - "arn:aws:s3:::githubtos3.kylemunz.com*"
-        - "arn:aws:s3:::githubtos3-dev.kylemunz.com*"
-        - "arn:aws:s3:::www.kylemunz.com*"
-        - "arn:aws:s3:::dev.kylemunz.com*"
+      Resource: ${self:custom.gts3_config.s3_targets}
     # Uncomment the below if you already have an errorLogs table in dynamoDB
     # (Note) Need to document errorLogs some day
     - Effect: "Allow"
@@ -50,17 +47,35 @@ provider:
             - Ref: 'AWS::Region'
             - Ref: 'AWS::AccountId'
             - 'table/errorLogs'
+    - Effect: "Allow"
+      Action:
+        - "sns:Publish"
+        - "sns:ListSubscriptionsByTopic"
+        - "sns:Subscribe"
+      Resource:
+        - "Fn::Join":
+            - ""
+            -
+              - "arn:aws:sns:"
+              - {Ref: "AWS::Region"}
+              - ":"
+              - {Ref: "AWS::AccountId"}
+              - ":github-webhooks"
 
 # Define Lambda functions
 functions:
-  # Deployer function
-  deployer:
-    handler: src/handler.deployer
-    description: Lambda bot triggered by Github webhook to APIG to deploy to S3
-    environment:
-      github_token: ${self:custom.github_personal_access_token}
+  # Listener function
+  listener:
+    handler: src/listener.handler
+    description: Lambda bot triggered by GitHub webhook to APIG, validates request, publishes to SNS
     events:
       - http:
           path: ghWebhook
           method: post
           cors: true
+  # Deployer function
+  deployer:
+    handler: src/deployer.handler
+    description: Lambda bot triggered by SNS topic to deploy to S3
+    events:
+      - sns: github-webhooks
