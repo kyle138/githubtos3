@@ -14,9 +14,8 @@ const s3Client = S3.createClient({s3Client: awsS3client});
 
 //
 // Begin promisification process...
-// Wrappers for built in fs writeFile and readFile functions to return a promise
+// Wrappers for built in fs writeFile and -readFile- functions to return a promise
 const fs_writeFile = util.promisify(fs.writeFile);
-const fs_readFile = util.promisify(fs.readFile);
 
 //
 // Extract the archive
@@ -143,7 +142,7 @@ module.exports.handler = async (event, context, callback) => {
   if(!process.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
     console.log("process.env.GITHUB_PERSONAL_ACCESS_TOKEN missing");  // DEBUG:
     await handleError("if(process.env.GITHUB_PERSONAL_ACCESS_TOKEN)","Missing GITHUB_PERSONAL_ACCESS_TOKEN.",context);
-    return callback(null, await genResObj400("Missing process.env.GITHUB_PERSONAL_ACCESS_TOKEN."));
+    return callback(null, "Missing process.env.GITHUB_PERSONAL_ACCESS_TOKEN.");
   }
 
   // Check if a github webhook secret token has been set as an environment variable.
@@ -151,7 +150,7 @@ module.exports.handler = async (event, context, callback) => {
   if(!process.env.GITHUB_WEBHOOK_SECRET) {
     console.log("process.env.GITHUB_WEBHOOK_SECRET missing"); // DEBUG:
     await handleError("if(process.env.GITHUB_WEBHOOK_SECRET)","Missing GITHUB_WEBHOOK_SECRET",context);
-    return callback(null, await genResObj400("Missing process.env.GITHUB_WEBHOOK_SECRET."));
+    return callback(null, "Missing process.env.GITHUB_WEBHOOK_SECRET.");
   }
 
   // Ok, now that all of the validation checks are out of the way...

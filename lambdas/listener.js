@@ -1,5 +1,5 @@
 'use strict';
-console.log('Loading function: Version 1.0.0');
+console.log('Loading function: Version 1.0.1');
 
 //
 // add/configure modules
@@ -28,7 +28,7 @@ function getDeployJSON(params) {
   return new Promise( (resolve, reject) => {
     if(!params.pat || !params.owner || !params.repo) {
       console.log(`getDeployJSON: PAT: ${params.pat} Owner:${params.owner} Repo:${params.repo}`);  // DEBUG:
-      return reject("getDeployJSON(): PAT, Owner, and Repo are required fields.")
+      return reject("getDeployJSON(): PAT, Owner, and Repo are required fields.");
     } else {
 
       // Create authorized github client (auth allows access to private repos)
@@ -47,7 +47,7 @@ function getDeployJSON(params) {
       .then(result => {
         // content will be base64 encoded
         var content = Buffer.from(result.data.content, 'base64').toString();
-        console.log(`getDeployJSON:content: ${content}`)
+        console.log(`getDeployJSON:content: ${content}`);
         validateDeployJSON(JSON.parse(content))
         .then(() => {
           console.log("getDeployJSON:validateDeployJSON: checks out."); // DEBUG:
@@ -60,7 +60,7 @@ function getDeployJSON(params) {
       })
       .catch((err) => {
         console.log("getDeployJSON:github.repos.getContents Error: ", err); // DEBUG:
-        return reject("getDeployJSON:github.repos.getContents Error.")
+        return reject("getDeployJSON:github.repos.getContents Error.");
       });
     }
   }); // End Promise
@@ -116,7 +116,7 @@ function publishToSns(params) {
       .catch((err) => {
         console.log(`publishToSns: Region: ${params.region} AcctId:${params.acctId} Data:${params.data}`);  // DEBUG:
         console.log("publishToSns:SNS.publish Error: ", err); // DEBUG:
-        return reject("publishToSns:SNS.publish Error.")
+        return reject("publishToSns:SNS.publish Error.");
       });
     }
   }); // End Promise
@@ -277,11 +277,12 @@ module.exports.handler = async (event, context, callback) => {
       deploy: deployObj
     };
 
-    const snsResponse = publishToSns({
+    const snsResponse = await publishToSns({
       region: context.invokedFunctionArn.split(":")[3],
       acctId: context.invokedFunctionArn.split(":")[4],
       data: deployData
     });
+    console.log("snsResponse: "+JSON.stringify(snsResponse,null,2));  // DEBUG:
 
     callback(null, await genResObj200("Alright, alright, alright."));
 
