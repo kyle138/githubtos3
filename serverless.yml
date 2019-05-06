@@ -61,12 +61,22 @@ provider:
               - {Ref: "AWS::AccountId"}
               - ":github-webhooks"
 
+layers:
+  commonModules:
+    path: layers/CommonModules
+    compatibleRuntimes: 
+      - nodejs8.10
+    name: ${self:provider.stage}-githubtos3-commonModules
+    description: "@octokit/rest node-stream-zip s3-client"
+
 # Define Lambda functions
 functions:
   # Listener function
   listener:
-    handler: src/listener.handler
+    handler: lambdas/listener.handler
     description: Lambda bot triggered by GitHub webhook to APIG, validates request, publishes to SNS
+    layers:
+      - {Ref: CommonModulesLambdaLayer}
     events:
       - http:
           path: ghWebhook
@@ -74,7 +84,9 @@ functions:
           cors: true
   # Deployer function
   deployer:
-    handler: src/deployer.handler
+    handler: lambdas/deployer.handler
     description: Lambda bot triggered by SNS topic to deploy to S3
+    layers:
+      - {Ref: CommonModulesLambdaLayer}
     events:
       - sns: github-webhooks
