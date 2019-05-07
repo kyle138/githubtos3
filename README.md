@@ -2,7 +2,7 @@
 A Lambda bot that responds to GitHub pushes and deploys to S3.
 
 ## Configuration:
-  *DEPRECATED*   Sorry, need to update documentation for V3.0.0 and up.
+  **DEPRECATED**   Sorry, need to update documentation for V3.0.0 and up.
   Please see the full How-To hosted in S3 using this Lambda bot [here](http://githubtos3.kylemunz.com/).
 
 ## Credits:
