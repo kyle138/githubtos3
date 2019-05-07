@@ -64,7 +64,7 @@ provider:
 layers:
   commonModules:
     path: layers/CommonModules
-    compatibleRuntimes: 
+    compatibleRuntimes:
       - nodejs8.10
     name: ${self:provider.stage}-githubtos3-commonModules
     description: "@octokit/rest node-stream-zip s3-client"
@@ -86,6 +86,7 @@ functions:
   deployer:
     handler: lambdas/deployer.handler
     description: Lambda bot triggered by SNS topic to deploy to S3
+    timeout: 300
     layers:
       - {Ref: CommonModulesLambdaLayer}
     events:
