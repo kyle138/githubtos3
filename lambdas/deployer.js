@@ -119,7 +119,7 @@ function handleError(method, message, context) {
 
     // Load the DDB client and write the errorLogs
     // Now everybody gonna know what you did.
-    new AWS.DynamoDB.DocumentClient({region: 'us-west-2'}).put(params, function(err, data) {
+    new AWS.DynamoDB.DocumentClient({region: 'us-east-1'}).put(params, function(err, data) {
       if (err) console.log("Unable to add DDB item to errorLogs: "+JSON.stringify(err, null, 2));
       return resolve();
     }); // End DDB.put
