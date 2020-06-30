@@ -1,5 +1,6 @@
 # githubtos3
 A Lambda bot that responds to GitHub pushes and deploys to S3.
+v3.1.0
 
 ## Configuration:
   **DEPRECATED**   Sorry, need to update documentation for V3.0.0 and up.

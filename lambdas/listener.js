@@ -1,10 +1,10 @@
 'use strict';
-console.log('Loading function: Version 1.0.1');
+console.log('Loading function: Version 3.1.0');
 
 //
 // add/configure modules
 const crypto = require('crypto');
-const GitHubApi = require('@octokit/rest');
+const { Octokit } = require('@octokit/rest');
 const AWS = require('aws-sdk');
 const SNS = new AWS.SNS();
 
@@ -32,7 +32,7 @@ function getDeployJSON(params) {
     } else {
 
       // Create authorized github client (auth allows access to private repos)
-      var github = new GitHubApi({
+      const octokit = new Octokit({
         auth: params.pat
       });
 
@@ -43,7 +43,7 @@ function getDeployJSON(params) {
       };
       // If ref not provided default to master
       gCparams.ref = (params.ref=='refs/heads/dev') ? params.ref : 'refs/heads/master';
-      github.repos.getContents(gCparams)
+      octokit.repos.getContent(gCparams)
       .then(result => {
         // content will be base64 encoded
         var content = Buffer.from(result.data.content, 'base64').toString();
@@ -59,8 +59,8 @@ function getDeployJSON(params) {
         });
       })
       .catch((err) => {
-        console.log("getDeployJSON:github.repos.getContents Error: ", err); // DEBUG:
-        return reject("getDeployJSON:github.repos.getContents Error.");
+        console.log("getDeployJSON:octokit.repos.getContents Error: ", err); // DEBUG:
+        return reject("getDeployJSON:octokit.repos.getContents Error.");
       });
     }
   }); // End Promise
