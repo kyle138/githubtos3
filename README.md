@@ -2,9 +2,12 @@
 A Lambda bot that responds to GitHub pushes and deploys to S3.
 v3.1.0
 
+## Note:
+  After cloning or pulling changes remember to run 'npm install' from the *layers/CommonModules/nodejs* directory.
+  
 ## Configuration:
   **DEPRECATED**   Sorry, need to update documentation for V3.0.0 and up.
-  Please see the full How-To hosted in S3 using this Lambda bot [here](http://githubtos3.kylemunz.com/).
+  ~~Please see the full How-To hosted in S3 using this Lambda bot [here](http://githubtos3.kylemunz.com/).~~
 
 ## Credits:
   The changes in V3.0.x which moved the trigger for this function from GitHub's
