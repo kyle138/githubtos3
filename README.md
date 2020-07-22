@@ -8,6 +8,26 @@ v3.1.0
 ## Configuration:
   Please see the full How-To hosted in S3 using this Lambda bot [here](https://githubtos3.kylemunz.com/).
 
+## Components:
+- **Layers:** ```CommonModules``` Lambda layer with the following NPM modules:
+  - @octokit/rest
+  - download
+  - node-stream-zip
+  - s3-client
+- **API Endpoint:** POST - ```/ghWebhook``` URL Endpoint configured in the GitHub webhook.
+- **Lambda:** ```listener.handler``` Lambda function triggered by API Endpoint.
+  - Verifies event
+  - Retrieves deploy.json from GitHub repo
+  - Publishes to SNS
+  - Sends response to API
+- **SNS:** ```github-webhooks``` SNS topic that stores GitHub events to be processed.
+- **Lambda:** ```deployer.handler``` Lambda function triggered by SNS. 
+  - Queries GitHub API for download URL of the Zip file
+  - Downloads Zip file from URL provided to /tmp
+  - Unzips Zip file locally
+  - Syncs local files with S3 bucket specified in deploy.json
+
+
 ## Credits:
   By no means did I come up with all of this by myself. I drew heavy inspiration (and code) from the links below::
 
