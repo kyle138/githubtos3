@@ -8,3 +8,4 @@ jspm_packages
 # other files
 test*
 config.json
+github_*
