@@ -1,11 +1,12 @@
 'use strict';
-console.log('Loading function: Version 3.0.2');
+console.log('Loading function: Version 3.2.0');
 
 //
 // add/configure modules
 const fs = require('fs');
 const util = require('util');
-const GitHubApi = require('@octokit/rest');
+const { Octokit } = require('@octokit/rest');
+const download = require('download');
 const StreamZip = require('node-stream-zip');
 const AWS = require('aws-sdk');
 const awsS3client = new AWS.S3({apiVersion: '2006-03-01'});
@@ -157,26 +158,21 @@ module.exports.handler = async (event, context, callback) => {
   try {
 
     // Create authorized github client (auth allows access to private repos)
-    var github = new GitHubApi({
+    const octokit = new Octokit({
       auth: process.env.GITHUB_PERSONAL_ACCESS_TOKEN
     });
 
     // Retrieve archive of repo from github
-    // getArchiveLink previously only returned the link used to d/l the zipball
-    // It still does that but now it also returns the entire archive as well? ¯\_(ツ)_/¯
-    // It may be depricated and replaced by getArchive() later
-    // So why am I still using getArchiveLink() you ask?
-    // Because getArchive() doesn't exist yet
-    // Yeah, I'm as impressed with this as you are
-    const ghArchive = await github.repos.getArchiveLink({
+    // Note: getArchiveLink renamed to downloadArchive as of @octokit/rest v18
+    const ghArchive = await octokit.repos.downloadArchive({
       owner: snsEventObject.repoOwner,
       repo: snsEventObject.repoName,
       archive_format: 'zipball',
       ref: snsEventObject.ref
     });
 
-    // Save the repo archive locally in the /tmp directory
-    await fs_writeFile('/tmp/github.zip', ghArchive.data);
+    // Save the repo archive locally to /tmp/github.zip
+    await fs_writeFile('/tmp/github.zip', await download(ghArchive.url));
 
     // Extract the archive and return the directory it was extrated into
     const extractedTo = await extractArchive('/tmp/github.zip');

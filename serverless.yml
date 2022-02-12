@@ -8,7 +8,7 @@ custom:
 
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs12.x
   memorySize: 128
   timeout: 30
   # Stage name goes here (eg: dev/prod/v1)
@@ -43,7 +43,8 @@ provider:
         - 'Fn::Join':
           - ':'
           -
-            - 'arn:aws:dynamodb:us-west-2'
+            - 'arn:aws:dynamodb'
+            - Ref: 'AWS::Region'
             - Ref: 'AWS::AccountId'
             - 'table/errorLogs'
     - Effect: "Allow"
@@ -65,7 +66,7 @@ layers:
   commonModules:
     path: layers/CommonModules
     compatibleRuntimes:
-      - nodejs8.10
+      - nodejs12.x
     name: ${self:provider.stage}-githubtos3-commonModules
     description: "@octokit/rest node-stream-zip s3-client"
 

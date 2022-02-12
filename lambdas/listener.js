@@ -1,10 +1,10 @@
 'use strict';
-console.log('Loading function: Version 1.0.1');
+console.log('Loading function: Version 3.2.0');
 
 //
 // add/configure modules
 const crypto = require('crypto');
-const GitHubApi = require('@octokit/rest');
+const { Octokit } = require('@octokit/rest');
 const AWS = require('aws-sdk');
 const SNS = new AWS.SNS();
 
@@ -22,8 +22,9 @@ function signRequestBody(key, body) {
 //  pat: GITHUB_PERSONAL_ACCESS_TOKEN,
 //  owner: Owner name for this GitHub repository
 //  repo: Repository name
-//  ref: 'refs/heads/master' or 'refs/heads/dev' *(OPTIONAL) Defaults to master
-//  }
+//  ref: 'refs/heads/master' or 'refs/heads/main' or 'refs/heads/dev'
+//      *(OPTIONAL) Defaults to master
+// }
 function getDeployJSON(params) {
   return new Promise( (resolve, reject) => {
     if(!params.pat || !params.owner || !params.repo) {
@@ -32,7 +33,7 @@ function getDeployJSON(params) {
     } else {
 
       // Create authorized github client (auth allows access to private repos)
-      var github = new GitHubApi({
+      const octokit = new Octokit({
         auth: params.pat
       });
 
@@ -42,8 +43,8 @@ function getDeployJSON(params) {
         path: 'deploy.json'
       };
       // If ref not provided default to master
-      gCparams.ref = (params.ref=='refs/heads/dev') ? params.ref : 'refs/heads/master';
-      github.repos.getContents(gCparams)
+      gCparams.ref = ((params.ref=='refs/heads/main')||(params.ref=='refs/heads/dev')) ? params.ref : 'refs/heads/master';
+      octokit.repos.getContent(gCparams)
       .then(result => {
         // content will be base64 encoded
         var content = Buffer.from(result.data.content, 'base64').toString();
@@ -59,8 +60,8 @@ function getDeployJSON(params) {
         });
       })
       .catch((err) => {
-        console.log("getDeployJSON:github.repos.getContents Error: ", err); // DEBUG:
-        return reject("getDeployJSON:github.repos.getContents Error.");
+        console.log("getDeployJSON:octokit.repos.getContents Error: ", err); // DEBUG:
+        return reject("getDeployJSON:octokit.repos.getContents Error.");
       });
     }
   }); // End Promise
@@ -75,12 +76,16 @@ function validateDeployJSON(deployObject) {
       console.log("validateDeployJSON: no deployObject"); // DEBUG:
       return reject("validateDeployJSON(): deployObject is a required argument and must be an object");
     } else {
+      // Check if deployObject has a type and target
+      // and make sure target has a master or a main and a dev.
       if(
         deployObject.hasOwnProperty('deploy')
         && deployObject.deploy.hasOwnProperty('type')
         && deployObject.deploy.hasOwnProperty('target')
-        && deployObject.deploy.target.hasOwnProperty('master')
         && deployObject.deploy.target.hasOwnProperty('dev')
+        && (deployObject.deploy.target.hasOwnProperty('master')
+              ||
+            deployObject.deploy.target.hasOwnProperty('main'))
       ) {
         return resolve();
       } else {
@@ -252,8 +257,10 @@ module.exports.handler = async (event, context, callback) => {
     return callback(null, await genResObj400("I told you I only wanted push events."));
   }
 
-  // Check if the 'push' is to the master or dev branches since that's all we care about.
-  if(githubEventObject.ref != 'refs/heads/master' && githubEventObject.ref != 'refs/heads/dev') {
+  // Check if the 'push' is to the master, main, or dev branches since that's all we care about.
+  if(githubEventObject.ref != 'refs/heads/master'
+     && githubEventObject.ref != 'refs/heads/main'
+     && githubEventObject.ref != 'refs/heads/dev') {
     console.log(`githubEventObject.ref is to the ${githubEventObject.ref} branch and we just don't care.`); // DEBUG:
     return callback(null, await genResObj400("This just isn't anything I care about."));
   }
