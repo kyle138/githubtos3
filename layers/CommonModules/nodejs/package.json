@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@octokit/rest": "^18.0.0",
+    "@octokit/rest": "^18.12.0",
     "download": "^8.0.0",
     "node-stream-zip": "^1.8.0",
     "s3-client": "^4.4.2"
