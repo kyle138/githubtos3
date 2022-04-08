@@ -8,7 +8,7 @@ custom:
 
 provider:
   name: aws
-  runtime: nodejs12.x
+  runtime: nodejs14.x
   memorySize: 128
   timeout: 30
   # Stage name goes here (eg: dev/prod/v1)
