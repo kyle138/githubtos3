@@ -15,6 +15,7 @@ provider:
   stage: v1
   # Make sure this matches the region you are using
   region: us-east-1
+  lambdaHashingVersion: 20201221
   environment:
     GITHUB_WEBHOOK_SECRET: ${self:custom.gts3_config.github_webhook_secret}
     GITHUB_PERSONAL_ACCESS_TOKEN: ${self:custom.gts3_config.github_personal_access_token}
