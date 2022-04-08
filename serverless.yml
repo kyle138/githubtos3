@@ -8,13 +8,14 @@ custom:
 
 provider:
   name: aws
-  runtime: nodejs12.x
+  runtime: nodejs14.x
   memorySize: 128
   timeout: 30
   # Stage name goes here (eg: dev/prod/v1)
   stage: v1
   # Make sure this matches the region you are using
   region: us-east-1
+  lambdaHashingVersion: 20201221
   environment:
     GITHUB_WEBHOOK_SECRET: ${self:custom.gts3_config.github_webhook_secret}
     GITHUB_PERSONAL_ACCESS_TOKEN: ${self:custom.gts3_config.github_personal_access_token}
