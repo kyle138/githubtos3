@@ -88,7 +88,9 @@ functions:
   deployer:
     handler: lambdas/deployer.handler
     description: Lambda bot triggered by SNS topic to deploy to S3
-    timeout: 300
+    timeout: 900
+    memorySize: 2048
+    ephemeralStorageSize: 2048
     layers:
       - {Ref: CommonModulesLambdaLayer}
     events:
