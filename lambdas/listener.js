@@ -11,8 +11,7 @@ const SNS = new AWS.SNS();
 //
 // Sign the request body
 function signRequestBody(key, body) {
-  console.log(`sha256=${crypto.createHmac('sha256', key).update(body, 'utf-8').digest('hex')}`);  // DEBUG
-  return `sha1=${crypto.createHmac('sha1', key).update(body, 'utf-8').digest('hex')}`;
+  return `sha256=${crypto.createHmac('sha256', key).update(body, 'utf-8').digest('hex')}`;
 } // End signRequestBody
 
 //
@@ -222,19 +221,19 @@ module.exports.handler = async (event, context, callback) => {
     return callback(null, await genResObj400("Missing process.env.GITHUB_WEBHOOK_SECRET."));
   }
 
-  // Check if event has x-hub-Signature header
+  // Check if event has x-hub-signature header
   // Without this we can't verify GitHub actually sent this event, IT COULD BE ANYBODY ZOMBGOSH!!!!
-  if(!event.headers.hasOwnProperty('x-hub-signature')) {
-    console.log("No x-hub-Signature found on request"); // DEBUG:
-    await handleError("if(x-hub-Signature)","Missing x-hub-Signature header.",context);
-    return callback(null, await genResObj400("No x-hub-Signature found on request."));
+  if(!event.headers.hasOwnProperty('x-hub-signature-256')) {
+    console.log("No x-hub-signature found on request"); // DEBUG:
+    await handleError("if(x-hub-signature)","Missing x-hub-signature header.",context);
+    return callback(null, await genResObj400("No x-hub-signature found on request."));
   }
 
   // Check if the event signatures match
   // If they don't match then somebody other than GitHub sent this event.
-  if(event.headers['x-hub-signature'] !== signRequestBody(process.env.GITHUB_WEBHOOK_SECRET, event.body)) {
-    console.log("x-hub-Signature does not match our signature."); // DEBUG:
-    await handleError("if(x-hub-Signature !== ourSignature)","x-hub-Signature does not match our signature.",context);
+  if(event.headers['x-hub-signature-256'] !== signRequestBody(process.env.GITHUB_WEBHOOK_SECRET, event.body)) {
+    console.log("x-hub-signature-256 does not match our signature."); // DEBUG:
+    await handleError("if(x-hub-signature !== ourSignature)","x-hub-signature-256 does not match our signature.",context);
     return callback(null, await genResObj400("THAT'S MY PURSE! I DON'T KNOW YOU!"));
   }
 
