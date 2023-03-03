@@ -8,14 +8,15 @@ custom:
 
 provider:
   name: aws
-  runtime: nodejs14.x
+  runtime: nodejs18.x
   memorySize: 128
-  timeout: 30
+  timeout: 29
   # Stage name goes here (eg: dev/prod/v1)
   stage: v1
   # Make sure this matches the region you are using
   region: us-east-1
-  lambdaHashingVersion: 20201221
+  httpApi:
+    cors: true
   environment:
     GITHUB_WEBHOOK_SECRET: ${self:custom.gts3_config.github_webhook_secret}
     GITHUB_PERSONAL_ACCESS_TOKEN: ${self:custom.gts3_config.github_personal_access_token}
@@ -67,9 +68,10 @@ layers:
   commonModules:
     path: layers/CommonModules
     compatibleRuntimes:
-      - nodejs12.x
+      - nodejs14.x
+      - nodejs18.x
     name: ${self:provider.stage}-githubtos3-commonModules
-    description: "@octokit/rest node-stream-zip s3-client"
+    description: "@octokit/rest download node-stream-zip s3-client"
 
 # Define Lambda functions
 functions:
@@ -80,10 +82,7 @@ functions:
     layers:
       - {Ref: CommonModulesLambdaLayer}
     events:
-      - http:
-          path: ghWebhook
-          method: post
-          cors: true
+      - httpApi: 'POST /ghWebhook'
   # Deployer function
   deployer:
     handler: lambdas/deployer.handler
