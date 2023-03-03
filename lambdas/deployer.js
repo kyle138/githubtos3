@@ -21,44 +21,37 @@ const fs_writeFile = util.promisify(fs.writeFile);
 //
 // Extract the archive
 function extractArchive(archive) {
-  return new Promise( (resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     if(!archive) {
-      console.log("extractArchive: no archive");  // DEBUG:
+      console.log("extractArchive: no archive");  // DEBUG
       return reject("extractArchive(): archive is a required argument.");
     } else {
-      const zip = new StreamZip({
+      const zip = new StreamZip.async({
         file: archive,
         storeEntries: true
       });
 
-      zip.on('error', err => {
-        console.log("extractArchive::zip error: "+ err);
+      // The first entry should be the subdirectory added by github.
+      // Capture its name here for the return
+      // This will be used later to know where the files were extracted to
+      var extractionDestination = '/tmp/'+Object.keys(await zip.entries())[0];
+      console.log(extractionDestination); //DEBUG
+
+      await zip.extract(null, '/tmp')
+      .then(async (count) => {
+        console.log(`Extracted ${count} entries.`);  
+        await zip.close();
+        return resolve(extractionDestination);
+      })
+      .catch((err)=> {
+        console.log("extractArchive::zip error: "+err); 
         return reject("Zip error");
-      });
+      })
 
-      zip.on('ready', () => {
-        console.log('extractArchive::Entries read: '+ zip.entriesCount);  // DEBUG:
-
-        // The first entry should be the subdirectory added by github.
-        // Capture its name here for the return
-        // This will be used later to know where the files were extracted to
-        var extractionDestination = '/tmp/'+Object.keys(zip.entries())[0];
-
-        // Extract everything to /tmp, be mindful of the 500MB cumulative limit
-        zip.extract(null, '/tmp', (err, count) => {
-          if(err) {
-            console.log("extractArchive::zip.extract error:: "+err);
-            return reject("Zip Extract error.");
-          } else {
-            console.log(`extractArchive::Extracted ${count} entries to ${extractionDestination}`);  // DEBUG:
-            zip.close();
-            return resolve(extractionDestination);
-          } //Commencing ridiculously long closing bracket sequence...
-        }); // End zip.extract
-      }); // End zip.on(ready)
-    } // End if archive
+    }
   }); // End Promise
 } // End extractArchive
+
 
 //
 // deployS3
