@@ -20,35 +20,46 @@ const fs_writeFile = util.promisify(fs.writeFile);
 
 //
 // Extract the archive
-function extractArchive(archive) {
+// params: {object}
+// archive: {string} - The path to the archive to extract.
+// subdir: {string} - <optional> If present, extract the subdirectory from the archive.
+function extractArchive(params) {
   return new Promise(async (resolve, reject) => {
-    if(!archive) {
+    if(!params.archive) {
       console.log("extractArchive: no archive");  // DEBUG
       return reject("extractArchive(): archive is a required argument.");
     } else {
+      console.log('extractArchive::params: ',JSON.stringify(params,null,2));  //DEBUG
       const zip = new StreamZip.async({
-        file: archive,
+        file: params.archive,
         storeEntries: true
       });
 
-      // The first entry should be the subdirectory added by github.
-      // Capture its name here for the return
-      // This will be used later to know where the files were extracted to
-      var extractionDestination = '/tmp/'+Object.keys(await zip.entries())[0];
-      console.log(extractionDestination); //DEBUG
+      // Get the list of directories and files in this archive
+      const zipEntries = Object.keys(await zip.entries());
+      // The first entry will always be the subdirectory added by github based on this commit hash
+      // If no subdir provided only extract the github subdirectory, otherwise extract the githubsubdir/providedsubdir
+      const subdir = (params.subdir === null) ? zipEntries[0] : zipEntries[0]+params.subdir;
+      if(!zipEntries.includes(subdir)) {
+        console.log('This subdirectory does not exist!!!'); //DEBUG
+        console.log(zipEntries);  //DEBUG
+        return reject(`extractArchive::error: The subdirectory ${params.subdir} does not exist in the archive.`);
+      }
 
-      await zip.extract(null, '/tmp')
+      fs.mkdirSync(`/tmp/${subdir}`, {recursive: true});
+      await zip.extract(subdir, '/tmp/'+subdir)
       .then(async (count) => {
-        console.log(`Extracted ${count} entries.`);  
+        console.log(`Extracted ${count} entries to /tmp/${subdir}.`);  
         await zip.close();
-        return resolve(extractionDestination);
+        // return the directory the files were extracted to so deployS3 knows where to find them.
+        return resolve('/tmp/'+subdir);
       })
-      .catch((err)=> {
+      .catch(async (err) => {
         console.log("extractArchive::zip error: "+err); 
+        await zip.close();
         return reject("Zip error");
-      })
-
-    }
+      }); // End zip.extract
+    } // End if !params.archive
   }); // End Promise
 } // End extractArchive
 
@@ -167,11 +178,17 @@ module.exports.handler = async (event, context, callback) => {
     // Save the repo archive locally to /tmp/github.zip
     await fs_writeFile('/tmp/github.zip', await download(ghArchive.url));
 
-    // Extract the archive and return the directory it was extrated into
-    const extractedTo = await extractArchive('/tmp/github.zip');
-
     // Get deployment info from deploy.json
     const deployObj = snsEventObject.deploy;
+
+    // Check if deploy.json has a subdir set
+    const subdir = deployObj.deploy?.subdir ? deployObj.deploy.subdir : null;
+
+    // Extract the archive and return the directory it was extrated into
+    const extractedTo = await extractArchive({
+      subdir: subdir,
+      archive: '/tmp/github.zip'
+    });
 
     // Test if type within deploy.json is supported
     if(deployObj.deploy.type == "S3") {
