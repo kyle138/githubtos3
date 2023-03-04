@@ -1,6 +1,6 @@
 # githubtos3
 A Lambda bot that responds to GitHub pushes and deploys to S3.
-v3.1.0
+v4.0.0
 
 ## Note:
   After cloning or pulling changes remember to run 'npm install' from the **layers/CommonModules/nodejs** directory.
@@ -24,9 +24,8 @@ v3.1.0
 - **Lambda:** ```deployer.handler``` Lambda function triggered by SNS. 
   - Queries GitHub API for download URL of the Zip file
   - Downloads Zip file from URL provided to /tmp
-  - Unzips Zip file locally
+  - Unzips entire or partial zip file locally
   - Syncs local files with S3 bucket specified in deploy.json
-
 
 ## Credits:
   By no means did I come up with all of this by myself. I drew heavy inspiration (and code) from the links below::

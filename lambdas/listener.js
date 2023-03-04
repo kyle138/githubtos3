@@ -1,5 +1,5 @@
 'use strict';
-console.log('Loading function: Version 3.2.0');
+console.log('Loading function: Version 4.0.0');
 
 //
 // add/configure modules
