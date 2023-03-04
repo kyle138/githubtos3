@@ -1,5 +1,5 @@
 'use strict';
-console.log('Loading function: Version 3.2.0');
+console.log('Loading function: Version 4.0.0');
 
 //
 // add/configure modules
@@ -11,7 +11,7 @@ const SNS = new AWS.SNS();
 //
 // Sign the request body
 function signRequestBody(key, body) {
-  return `sha1=${crypto.createHmac('sha1', key).update(body, 'utf-8').digest('hex')}`;
+  return `sha256=${crypto.createHmac('sha256', key).update(body, 'utf-8').digest('hex')}`;
 } // End signRequestBody
 
 //
@@ -221,39 +221,39 @@ module.exports.handler = async (event, context, callback) => {
     return callback(null, await genResObj400("Missing process.env.GITHUB_WEBHOOK_SECRET."));
   }
 
-  // Check if event has X-Hub-Signature header
+  // Check if event has x-hub-signature header
   // Without this we can't verify GitHub actually sent this event, IT COULD BE ANYBODY ZOMBGOSH!!!!
-  if(!event.headers.hasOwnProperty('X-Hub-Signature')) {
-    console.log("No X-Hub-Signature found on request"); // DEBUG:
-    await handleError("if(X-Hub-Signature)","Missing X-Hub-Signature header.",context);
-    return callback(null, await genResObj400("No X-Hub-Signature found on request."));
+  if(!event.headers.hasOwnProperty('x-hub-signature-256')) {
+    console.log("No x-hub-signature found on request"); // DEBUG:
+    await handleError("if(x-hub-signature)","Missing x-hub-signature header.",context);
+    return callback(null, await genResObj400("No x-hub-signature found on request."));
   }
 
   // Check if the event signatures match
   // If they don't match then somebody other than GitHub sent this event.
-  if(event.headers['X-Hub-Signature'] !== signRequestBody(process.env.GITHUB_WEBHOOK_SECRET, event.body)) {
-    console.log("X-Hub-Signature does not match our signature."); // DEBUG:
-    await handleError("if(X-Hub-Signature !== ourSignature)","X-Hub-Signature does not match our signature.",context);
+  if(event.headers['x-hub-signature-256'] !== signRequestBody(process.env.GITHUB_WEBHOOK_SECRET, event.body)) {
+    console.log("x-hub-signature-256 does not match our signature."); // DEBUG:
+    await handleError("if(x-hub-signature !== ourSignature)","x-hub-signature-256 does not match our signature.",context);
     return callback(null, await genResObj400("THAT'S MY PURSE! I DON'T KNOW YOU!"));
   }
 
-  // Check if event has X-GitHub-Event header
+  // Check if event has x-github-event header
   // We use this later to determine if this is an event we care about.
-  if(!event.headers.hasOwnProperty('X-GitHub-Event')) {
-    console.log("No X-GitHub-Event found on requst");
-    await handleError("if(X-GitHub-Event)","Missing X-GitHub-Event header.",context);
-    return callback(null, await genResObj400("No X-GitHub-Event header found on request."));
+  if(!event.headers.hasOwnProperty('x-github-event')) {
+    console.log("No x-github-event found on requst");
+    await handleError("if(x-github-event)","Missing x-github-event header.",context);
+    return callback(null, await genResObj400("No x-github-event header found on request."));
   }
 
   // Check if event is a 'ping' type for testing.
-  if(event.headers['X-GitHub-Event'] == "ping") {
-    console.log(`X-GitHub-Event is of type ${event.headers['X-GitHub-Event']}, Whatever.`); // DEBUG:
+  if(event.headers['x-github-event'] == "ping") {
+    console.log(`x-github-event is of type ${event.headers['x-github-event']}, Whatever.`); // DEBUG:
     return callback(null, await genResObj200("I see you have the machine that goes PING!"));
   }
 
   // Check if event is a 'push' type since that's all we care about.
-  if(event.headers['X-GitHub-Event'] != "push") {
-    console.log(`githubEvent is of type ${event.headers['X-GitHub-Event']} and we just don't care.`); // DEBUG:
+  if(event.headers['x-github-event'] != "push") {
+    console.log(`githubEvent is of type ${event.headers['x-github-event']} and we just don't care.`); // DEBUG:
     return callback(null, await genResObj400("I told you I only wanted push events."));
   }
 
