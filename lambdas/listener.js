@@ -1,12 +1,14 @@
 'use strict';
-console.log('Loading function: Version 4.0.0');
+console.log('Loading function: Version 4.1.0');
 
 //
 // add/configure modules
 const crypto = require('crypto');
 const { Octokit } = require('@octokit/rest');
-const AWS = require('aws-sdk');
-const SNS = new AWS.SNS();
+//const AWS = require('aws-sdk');
+//const SNS = new AWS.SNS();
+import { PublishCommand } from "@aws-sdk/client-sns";
+import { snsClient } from "../libs/snsClient.js";
 
 //
 // Sign the request body
