@@ -17,5 +17,6 @@
   "bugs": {
     "url": "https://github.com/kyle138/githubtos3/issues"
   },
-  "homepage": "https://github.com/kyle138/githubtos3#readme"
+  "homepage": "https://github.com/kyle138/githubtos3#readme",
+  "type": "module"
 }
