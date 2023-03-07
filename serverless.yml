@@ -71,7 +71,7 @@ layers:
       - nodejs14.x
       - nodejs18.x
     name: ${self:provider.stage}-githubtos3-commonModules
-    description: "@octokit/rest download node-stream-zip s3-client"
+    description: "@octokit/rest download node-stream-zip s3-sync-client"
   deployerModules:
     path: layers/DeployerModules
     compatibleRuntimes:
