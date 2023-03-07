@@ -7,6 +7,8 @@ import crypto from 'crypto';
 import { Octokit } from '@octokit/rest';
 import { PublishCommand } from "@aws-sdk/client-sns";
 import { snsClient } from "../libs/snsClient.js";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { ddbDocClient } from "../libs/ddbDocClient.js";
 
 //
 // Sign the request body
@@ -167,7 +169,7 @@ function genResObj400(message) {
 // handleError
 // Writes error message to DDB errorTable for reporting
 function handleError(method, message, context) {
-  return new Promise( (resolve) => {
+  return new Promise( async (resolve) => {
     var errorMessage = {
       lambdaFunctionName: context.functionName,
       eventTimeUTC: new Date().toUTCString(),
@@ -187,10 +189,15 @@ function handleError(method, message, context) {
 
     // Load the DDB client and write the errorLogs
     // Now everybody gonna know what you did.
-    // new AWS.DynamoDB.DocumentClient({region: 'us-east-1'}).put(params, function(err, data) {
-    //   if (err) console.log("Unable to add DDB item to errorLogs: "+JSON.stringify(err, null, 2));
-    //   return resolve();
-    // }); // End DDB.put
+    try {
+      const data = await ddbDocClient.send(new PutCommand(params));
+      console.log("handleError:put data: ",JSON.stringify(data,null,2));  // DEBUG
+      return resolve();
+    } catch (err) {
+      console.log("Unable to add DDB item to errorLogs: ",err); 
+      // Yes this is an error, but we don't want it to kill the lambda.
+      return resolve();
+    }
   }); // End Promise
 } // End handleError
 
