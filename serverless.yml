@@ -71,14 +71,14 @@ layers:
       - nodejs14.x
       - nodejs18.x
     name: ${self:provider.stage}-githubtos3-commonModules
-    description: "@octokit/rest download node-stream-zip s3-sync-client"
+    description: "@octokit/rest"
   deployerModules:
     path: layers/DeployerModules
     compatibleRuntimes:
       - nodejs14.x
       - nodejs18.x
     name: ${self:provider.stage}-githubtos3-deployerModules
-    description: "download node-stream-zip s3-client"
+    description: "download node-stream-zip s3-sync-client"
 
 # Define Lambda functions
 functions:

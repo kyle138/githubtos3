@@ -1,7 +1,7 @@
 {
   "name": "githubtos3-layers-deployermodules",
   "version": "1.0.0",
-  "description": "download, node-stream-zip, s3-client",
+  "description": "download, node-stream-zip, s3-sync-client",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
