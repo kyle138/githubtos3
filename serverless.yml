@@ -1,6 +1,14 @@
 
 service: SLS-GithubToS3
 
+frameworkVersion: ">=1.0.0 <4.0.0"
+package:
+  patterns:
+    - '!README.md'
+    - '!LICENSE'
+    - '!mocks/**'
+    - '!config/**'
+
 custom:
   # Provide Github Personal Access Token here
   # https://github.com/settings/tokens
