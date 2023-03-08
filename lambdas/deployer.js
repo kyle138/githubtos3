@@ -3,19 +3,18 @@ console.log('Loading function: Version 4.1.0');
 
 //
 // add/configure modules
-// import { writeFile, mkdirSync } from 'fs';
-// import { promisify } from 'util';
-// import { async } from 'node-stream-zip';
 import { promises as fs } from 'fs';
 import { Octokit } from '@octokit/rest';
 import download from 'download';
 import { s3Client } from "../libs/s3Client.js";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddbDocClient } from '../libs/ddbDocClient.js';
-import { default as S3SyncClient } from 's3-sync-client';
+// I had to modify s3-sync-client in node-modules to export TransferMonitor, updates may break this.
+import { default as S3SyncClient, TransferMonitor } from 's3-sync-client';  
 import StreamZip from 'node-stream-zip';
 
 const { sync } = new S3SyncClient({ client: s3Client });
+const monitor = new TransferMonitor();
 
 //
 // Extract the archive
@@ -69,41 +68,27 @@ function extractArchive(params) {
 function deployS3(source, destination) {
   return new Promise( async (resolve,reject) => {
     if(!source || !destination) {
-
       console.log("deployS3: source or destination missing.");
       return reject("deployS3(): source and destination are both required arguments.");
 
     } else {
+      monitor.on('progress', (progress) => console.log(progress));
 
       const params = {
         del: true,  // --delete
-        partSize: 100 * 1024 * 1024 // uses multipart uploads for files higher than 100MB
+        partSize: 100 * 1024 * 1024, // uses multipart uploads for files higher than 100MB
+        monitor
       };  
 
       await sync(source, `s3://${destination}`, params)
-      .then(() => {
-        console.log('sync done'); //DEBUG
+      .then((data) => {
+        console.log('sync done',data); //DEBUG
         return resolve();
       })
       .catch((err) => {
         console.log('sync err:',err); 
         return reject(new Error('deployS3:sync error'));
       }); // End sync
-
-      // var syncer = s3Client.uploadDir(params);
-
-      // syncer.on('error', (err) => {
-      //   console.log("deployS3::s3Client.uploadDir error: ", err);
-      // });
-
-      // syncer.on('progress', () => {
-      //   console.log("deployS3::uploadDir progress", syncer.progressAmount, syncer.progressTotal);// DEBUG:
-      // });
-
-      // syncer.on('end', () => {
-      //   console.log("deployS3::uploadDir done."); // DEBUG:
-      //   return resolve();
-      // }); // End syncer
 
     } // End if source/destination
   }); // End Promise
