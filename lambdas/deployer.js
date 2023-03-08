@@ -168,10 +168,10 @@ export const handler = async (event, context) => {
 
     // Retrieve archive of repo from github
     // Note: getArchiveLink renamed to downloadArchive as of @octokit/rest v18
-    const ghArchive = await octokit.repos.downloadArchive({
+    // Note: octokit.repos.downloadZipballArchive renamed (AGAIN) to octokit.rest.repos.downloadZipballArchive as of @octokit/rest v19
+    const ghArchive = await octokit.rest.repos.downloadZipballArchive({
       owner: snsEventObject.repoOwner,
       repo: snsEventObject.repoName,
-      archive_format: 'zipball',
       ref: snsEventObject.ref
     });
 
