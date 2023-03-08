@@ -1,22 +1,20 @@
 'use strict';
-console.log('Loading function: Version 4.0.0');
+console.log('Loading function: Version 4.1.0');
 
 //
 // add/configure modules
-const fs = require('fs');
-const util = require('util');
-const { Octokit } = require('@octokit/rest');
-const download = require('download');
-const StreamZip = require('node-stream-zip');
-const AWS = require('aws-sdk');
-const awsS3client = new AWS.S3({apiVersion: '2006-03-01'});
-const S3 = require('s3-client');
-const s3Client = S3.createClient({s3Client: awsS3client});
+import { promises as fs } from 'fs';
+import { Octokit } from '@octokit/rest';
+import download from 'download';
+import { s3Client } from "../libs/s3Client.js";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { ddbDocClient } from '../libs/ddbDocClient.js';
+// I had to modify s3-sync-client in node-modules to export TransferMonitor, updates may break this.
+import { default as S3SyncClient, TransferMonitor } from 's3-sync-client';  
+import StreamZip from 'node-stream-zip';
 
-//
-// Begin promisification process...
-// Wrappers for built in fs writeFile and -readFile- functions to return a promise
-const fs_writeFile = util.promisify(fs.writeFile);
+const { sync } = new S3SyncClient({ client: s3Client });
+const monitor = new TransferMonitor();
 
 //
 // Extract the archive
@@ -46,7 +44,7 @@ function extractArchive(params) {
         return reject(`extractArchive::error: The subdirectory ${params.subdir} does not exist in the archive.`);
       }
 
-      fs.mkdirSync(`/tmp/${subdir}`, {recursive: true});
+      await fs.mkdir(`/tmp/${subdir}`, {recursive: true});
       await zip.extract(subdir, '/tmp/'+subdir)
       .then(async (count) => {
         console.log(`Extracted ${count} entries to /tmp/${subdir}.`);  
@@ -68,33 +66,30 @@ function extractArchive(params) {
 // deployS3
 // Sync the extracted folder to the S3 bucket
 function deployS3(source, destination) {
-  return new Promise( (resolve,reject) => {
+  return new Promise( async (resolve,reject) => {
     if(!source || !destination) {
       console.log("deployS3: source or destination missing.");
       return reject("deployS3(): source and destination are both required arguments.");
+
     } else {
-      var params = {
-        localDir: source,
-        deleteRemoved: true,
-        s3Params: {
-          Bucket: destination
-        }
-      }; // End params
+      monitor.on('progress', (progress) => console.log(progress));
 
-      var syncer = s3Client.uploadDir(params);
+      const params = {
+        del: true,  // --delete
+        partSize: 100 * 1024 * 1024, // uses multipart uploads for files higher than 100MB
+        monitor
+      };  
 
-      syncer.on('error', (err) => {
-        console.log("deployS3::s3Client.uploadDir error: ", err);
-      });
-
-      syncer.on('progress', () => {
-        console.log("deployS3::uploadDir progress", syncer.progressAmount, syncer.progressTotal);// DEBUG:
-      });
-
-      syncer.on('end', () => {
-        console.log("deployS3::uploadDir done."); // DEBUG:
+      await sync(source, `s3://${destination}`, params)
+      .then((data) => {
+        console.log('sync done',data); //DEBUG
         return resolve();
-      }); // End syncer
+      })
+      .catch((err) => {
+        console.log('sync err:',err); 
+        return reject(new Error('deployS3:sync error'));
+      }); // End sync
+
     } // End if source/destination
   }); // End Promise
 } // End deployS3
@@ -104,7 +99,7 @@ function deployS3(source, destination) {
 // handleError
 // Writes error message to DDB errorTable for reporting
 function handleError(method, message, context) {
-  return new Promise( (resolve) => {
+  return new Promise( async (resolve) => {
     var errorMessage = {
       lambdaFunctionName: context.functionName,
       eventTimeUTC: new Date().toUTCString(),
@@ -124,10 +119,15 @@ function handleError(method, message, context) {
 
     // Load the DDB client and write the errorLogs
     // Now everybody gonna know what you did.
-    new AWS.DynamoDB.DocumentClient({region: 'us-east-1'}).put(params, function(err, data) {
-      if (err) console.log("Unable to add DDB item to errorLogs: "+JSON.stringify(err, null, 2));
+    try {
+      const data = await ddbDocClient.send(new PutCommand(params));
+      console.log("handleError:put data: ",JSON.stringify(data,null,2));  // DEBUG
       return resolve();
-    }); // End DDB.put
+    } catch (err) {
+      console.log("Unable to add DDB item to errorLogs: ",err); 
+      // Yes this is an error, but we don't want it to kill the lambda.
+      return resolve();
+    }
   }); // End Promise
 } // End handleError
 
@@ -135,7 +135,7 @@ function handleError(method, message, context) {
 // ****************************************************
 //
 // Main function begins here
-module.exports.handler = async (event, context, callback) => {
+export const handler = async (event, context) => {
   console.log('Received event:', JSON.stringify(event, null, 2)); // DEBUG
 
   // GitHub event is contained in event.body as a stringified JSON, so parse it.
@@ -147,7 +147,7 @@ module.exports.handler = async (event, context, callback) => {
   if(!process.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
     console.log("process.env.GITHUB_PERSONAL_ACCESS_TOKEN missing");  // DEBUG:
     await handleError("if(process.env.GITHUB_PERSONAL_ACCESS_TOKEN)","Missing GITHUB_PERSONAL_ACCESS_TOKEN.",context);
-    return callback(null, "Missing process.env.GITHUB_PERSONAL_ACCESS_TOKEN.");
+    return new Error("Missing process.env.GITHUB_PERSONAL_ACCESS_TOKEN.");
   }
 
   // Check if a github webhook secret token has been set as an environment variable.
@@ -155,7 +155,7 @@ module.exports.handler = async (event, context, callback) => {
   if(!process.env.GITHUB_WEBHOOK_SECRET) {
     console.log("process.env.GITHUB_WEBHOOK_SECRET missing"); // DEBUG:
     await handleError("if(process.env.GITHUB_WEBHOOK_SECRET)","Missing GITHUB_WEBHOOK_SECRET",context);
-    return callback(null, "Missing process.env.GITHUB_WEBHOOK_SECRET.");
+    return new Error("Missing process.env.GITHUB_WEBHOOK_SECRET.");
   }
 
   // Ok, now that all of the validation checks are out of the way...
@@ -168,15 +168,16 @@ module.exports.handler = async (event, context, callback) => {
 
     // Retrieve archive of repo from github
     // Note: getArchiveLink renamed to downloadArchive as of @octokit/rest v18
-    const ghArchive = await octokit.repos.downloadArchive({
+    // Note: octokit.repos.downloadZipballArchive renamed (AGAIN) to octokit.rest.repos.downloadZipballArchive as of @octokit/rest v19
+    const ghArchive = await octokit.rest.repos.downloadZipballArchive({
       owner: snsEventObject.repoOwner,
       repo: snsEventObject.repoName,
-      archive_format: 'zipball',
       ref: snsEventObject.ref
     });
 
     // Save the repo archive locally to /tmp/github.zip
-    await fs_writeFile('/tmp/github.zip', await download(ghArchive.url));
+    // await fs_writeFile('/tmp/github.zip', await download(ghArchive.url));
+    await fs.writeFile('/tmp/github.zip', await download(ghArchive.url));
 
     // Get deployment info from deploy.json
     const deployObj = snsEventObject.deploy;
@@ -195,17 +196,17 @@ module.exports.handler = async (event, context, callback) => {
       console.log("Deploy type: S3. Ok to proceed.");
       var branch = snsEventObject.ref.split('refs/heads/')[1];
       await deployS3(extractedTo, deployObj.deploy.target[branch]);
-      callback(null, "Alright, alright, alright.");
+      return "Alright, alright, alright.";
     } else {
       console.log(`Invalid deploy type: ${deployObj.deploy.type}`);
       await handleError("Invalid deploy type.",deployObj.deploy.type,context);
-      callback(null, "Invalid deploy type.");
+      return new Error("Invalid deploy type.");
     }
 
   } catch(err) {
     console.log("Error Caught: ",err);  // DEBUG:
     await handleError("Error Caught", err, context);
-    callback("Deploy failed.",null);  // Deploy failed, report back to SNS to try again.
+    return new Error("Deploy failed.");  // Deploy failed, report back to SNS to try again.
   }
 
 };  // End exports.handler

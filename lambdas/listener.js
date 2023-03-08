@@ -1,12 +1,14 @@
 'use strict';
-console.log('Loading function: Version 4.0.0');
+console.log('Loading function: Version 4.1.0');
 
 //
 // add/configure modules
-const crypto = require('crypto');
-const { Octokit } = require('@octokit/rest');
-const AWS = require('aws-sdk');
-const SNS = new AWS.SNS();
+import crypto from 'crypto';
+import { Octokit } from '@octokit/rest';
+import { PublishCommand } from "@aws-sdk/client-sns";
+import { snsClient } from "../libs/snsClient.js";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { ddbDocClient } from "../libs/ddbDocClient.js";
 
 //
 // Sign the request body
@@ -103,7 +105,7 @@ function validateDeployJSON(deployObject) {
 // region - the AWS region of the SNS topic to publish to
 // acctId - the AWS account Id of the SNS topic to publish to
 function publishToSns(params) {
-  return new Promise( (resolve,reject) => {
+  return new Promise( async (resolve,reject) => {
     if(!params.data || !params.region || !params.acctId) {
       console.log(`publishToSns: Region: ${params.region} AcctId:${params.acctId} Data:${params.data}`);  // DEBUG:
       return reject("publishToSns(): Data, Region, and AcctId are required fields.");
@@ -113,7 +115,7 @@ function publishToSns(params) {
         TopicArn: `arn:aws:sns:${params.region}:${params.acctId}:github-webhooks`
       };
       console.log("pubParams: "+JSON.stringify(pubParams,null,2));  // DEBUG:
-      SNS.publish(pubParams).promise()
+      await snsClient.send(new PublishCommand(pubParams))
       .then(response => {
         console.log("publishToSns:SNS.publish response: "+JSON.stringify(response,null,2)); // DEBUG:
         return resolve(response);
@@ -167,7 +169,7 @@ function genResObj400(message) {
 // handleError
 // Writes error message to DDB errorTable for reporting
 function handleError(method, message, context) {
-  return new Promise( (resolve) => {
+  return new Promise( async (resolve) => {
     var errorMessage = {
       lambdaFunctionName: context.functionName,
       eventTimeUTC: new Date().toUTCString(),
@@ -187,10 +189,15 @@ function handleError(method, message, context) {
 
     // Load the DDB client and write the errorLogs
     // Now everybody gonna know what you did.
-    new AWS.DynamoDB.DocumentClient({region: 'us-east-1'}).put(params, function(err, data) {
-      if (err) console.log("Unable to add DDB item to errorLogs: "+JSON.stringify(err, null, 2));
+    try {
+      const data = await ddbDocClient.send(new PutCommand(params));
+      console.log("handleError:put data: ",JSON.stringify(data,null,2));  // DEBUG
       return resolve();
-    }); // End DDB.put
+    } catch (err) {
+      console.log("Unable to add DDB item to errorLogs: ",err); 
+      // Yes this is an error, but we don't want it to kill the lambda.
+      return resolve();
+    }
   }); // End Promise
 } // End handleError
 
@@ -198,7 +205,8 @@ function handleError(method, message, context) {
 // ****************************************************
 //
 // Main function begins here
-module.exports.handler = async (event, context, callback) => {
+//module.exports.handler = async (event, context, callback) => {
+export const handler = async (event, context) => {
   console.log('Received event:', JSON.stringify(event, null, 2)); // DEBUG
 
   // GitHub event is contained in event.body as a stringified JSON, so parse it.
@@ -210,7 +218,7 @@ module.exports.handler = async (event, context, callback) => {
   if(!process.env.GITHUB_PERSONAL_ACCESS_TOKEN) {
     console.log("process.env.GITHUB_PERSONAL_ACCESS_TOKEN missing");  // DEBUG:
     await handleError("if(process.env.GITHUB_PERSONAL_ACCESS_TOKEN)","Missing GITHUB_PERSONAL_ACCESS_TOKEN.",context);
-    return callback(null, await genResObj400("Missing process.env.GITHUB_PERSONAL_ACCESS_TOKEN."));
+    return await genResObj400("Missing process.env.GITHUB_PERSONAL_ACCESS_TOKEN.");
   }
 
   // Check if a github webhook secret token has been set as an environment variable.
@@ -218,7 +226,7 @@ module.exports.handler = async (event, context, callback) => {
   if(!process.env.GITHUB_WEBHOOK_SECRET) {
     console.log("process.env.GITHUB_WEBHOOK_SECRET missing"); // DEBUG:
     await handleError("if(process.env.GITHUB_WEBHOOK_SECRET)","Missing GITHUB_WEBHOOK_SECRET",context);
-    return callback(null, await genResObj400("Missing process.env.GITHUB_WEBHOOK_SECRET."));
+    return await genResObj400("Missing process.env.GITHUB_WEBHOOK_SECRET.");
   }
 
   // Check if event has x-hub-signature header
@@ -226,7 +234,7 @@ module.exports.handler = async (event, context, callback) => {
   if(!event.headers.hasOwnProperty('x-hub-signature-256')) {
     console.log("No x-hub-signature found on request"); // DEBUG:
     await handleError("if(x-hub-signature)","Missing x-hub-signature header.",context);
-    return callback(null, await genResObj400("No x-hub-signature found on request."));
+    return await genResObj400("No x-hub-signature found on request.");
   }
 
   // Check if the event signatures match
@@ -234,7 +242,7 @@ module.exports.handler = async (event, context, callback) => {
   if(event.headers['x-hub-signature-256'] !== signRequestBody(process.env.GITHUB_WEBHOOK_SECRET, event.body)) {
     console.log("x-hub-signature-256 does not match our signature."); // DEBUG:
     await handleError("if(x-hub-signature !== ourSignature)","x-hub-signature-256 does not match our signature.",context);
-    return callback(null, await genResObj400("THAT'S MY PURSE! I DON'T KNOW YOU!"));
+    return await genResObj400("THAT'S MY PURSE! I DON'T KNOW YOU!");
   }
 
   // Check if event has x-github-event header
@@ -242,19 +250,19 @@ module.exports.handler = async (event, context, callback) => {
   if(!event.headers.hasOwnProperty('x-github-event')) {
     console.log("No x-github-event found on requst");
     await handleError("if(x-github-event)","Missing x-github-event header.",context);
-    return callback(null, await genResObj400("No x-github-event header found on request."));
+    return await genResObj400("No x-github-event header found on request.");
   }
 
   // Check if event is a 'ping' type for testing.
   if(event.headers['x-github-event'] == "ping") {
     console.log(`x-github-event is of type ${event.headers['x-github-event']}, Whatever.`); // DEBUG:
-    return callback(null, await genResObj200("I see you have the machine that goes PING!"));
+    return await genResObj200("I see you have the machine that goes PING!");
   }
 
   // Check if event is a 'push' type since that's all we care about.
   if(event.headers['x-github-event'] != "push") {
     console.log(`githubEvent is of type ${event.headers['x-github-event']} and we just don't care.`); // DEBUG:
-    return callback(null, await genResObj400("I told you I only wanted push events."));
+    return await genResObj400("I told you I only wanted push events.");
   }
 
   // Check if the 'push' is to the master, main, or dev branches since that's all we care about.
@@ -262,7 +270,7 @@ module.exports.handler = async (event, context, callback) => {
      && githubEventObject.ref != 'refs/heads/main'
      && githubEventObject.ref != 'refs/heads/dev') {
     console.log(`githubEventObject.ref is to the ${githubEventObject.ref} branch and we just don't care.`); // DEBUG:
-    return callback(null, await genResObj400("This just isn't anything I care about."));
+    return await genResObj400("This just isn't anything I care about.");
   }
 
   // Ok, now that all of the validation checks are out of the way...
@@ -291,12 +299,12 @@ module.exports.handler = async (event, context, callback) => {
     });
     console.log("snsResponse: "+JSON.stringify(snsResponse,null,2));  // DEBUG:
 
-    callback(null, await genResObj200("Alright, alright, alright."));
+    return await genResObj200("Alright, alright, alright.");
 
   } catch(err) {
     console.log("Error Caught: ",err);  // DEBUG:
     await handleError("Error Caught", err, context);
-    callback(null, await genResObj400("Deploy Failed."));
+    return await genResObj400("Deploy Failed.");
   }
 
 };  // End exports.handler

@@ -1,7 +1,7 @@
 {
-  "name": "githubtos3-layers",
-  "version": "1.0.0",
-  "description": "Common Modules Layer for GitHubToS3 ",
+  "name": "githubtos3-layers-commonmodules",
+  "version": "2.0.0",
+  "description": "octokit/rest",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,9 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@octokit/rest": "^18.12.0",
-    "download": "^8.0.0",
-    "node-stream-zip": "^1.15.0",
-    "s3-client": "^4.4.2"
+    "@octokit/rest": "^19.0.7"
   }
 }
