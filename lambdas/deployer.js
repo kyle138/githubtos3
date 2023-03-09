@@ -1,5 +1,5 @@
 'use strict';
-console.log('Loading function: Version 4.2.0');
+console.log('Loading function: Version 4.2.1');
 
 //
 // add/configure modules
@@ -10,12 +10,11 @@ import download from 'download';
 import { s3Client } from "../libs/s3Client.js";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddbDocClient } from '../libs/ddbDocClient.js';
-// I had to modify s3-sync-client in node-modules to export TransferMonitor, updates may break this.
-import { default as S3SyncClient, TransferMonitor } from 's3-sync-client';  
+import { default as S3SyncClient } from 's3-sync-client';  
 import StreamZip from 'node-stream-zip';
 
 const { sync } = new S3SyncClient({ client: s3Client });
-const monitor = new TransferMonitor();
+const monitor = new S3SyncClient.TransferMonitor();
 
 //
 // Extract the archive
