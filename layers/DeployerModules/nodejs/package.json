@@ -1,7 +1,7 @@
 {
   "name": "githubtos3-layers-deployermodules",
   "version": "1.0.0",
-  "description": "download, node-stream-zip, s3-sync-client",
+  "description": "download, node-stream-zip, s3-sync-client, mime-type",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "download": "^8.0.0",
+    "mime-types": "^2.1.35",
     "node-stream-zip": "^1.15.0",
     "s3-sync-client": "^3.0.3"
   }

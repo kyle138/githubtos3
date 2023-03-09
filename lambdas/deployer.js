@@ -4,6 +4,7 @@ console.log('Loading function: Version 4.1.0');
 //
 // add/configure modules
 import { promises as fs } from 'fs';
+import { lookup } from 'mime-types';
 import { Octokit } from '@octokit/rest';
 import download from 'download';
 import { s3Client } from "../libs/s3Client.js";
@@ -77,7 +78,12 @@ function deployS3(source, destination) {
       const params = {
         del: true,  // --delete
         partSize: 100 * 1024 * 1024, // uses multipart uploads for files higher than 100MB
-        monitor
+        monitor,  // monitor transfer progress
+        commandInput: { // pass AWS SDK command input options
+          ContentType: (syncCommandInput) => (  // sets the Content-Type Metadata for the object
+            lookup(syncCommandInput.Key) || 'text/html' // lookup the mime-type or default to html
+          )
+        }
       };  
 
       await sync(source, `s3://${destination}`, params)

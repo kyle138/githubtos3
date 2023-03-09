@@ -86,7 +86,7 @@ layers:
       - nodejs14.x
       - nodejs18.x
     name: ${self:provider.stage}-githubtos3-deployerModules
-    description: "download node-stream-zip s3-sync-client"
+    description: "download node-stream-zip s3-sync-client mime-type"
 
 # Define Lambda functions
 functions:
