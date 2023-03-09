@@ -1,7 +1,7 @@
 # githubtos3
 A Lambda bot that responds to GitHub pushes and deploys to S3.  
 Now supports deploying only an optional subdirectory of the repo.
-v4.1.0  
+v4.2.0  
 
 ## Note:
   After cloning or pulling changes remember to run 'npm install' from the **layers/CommonModules/nodejs** directory.   
