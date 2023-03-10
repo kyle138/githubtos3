@@ -1,5 +1,5 @@
 # githubtos3
-v4.2.1  
+v4.2.2  
 A Lambda bot that responds to GitHub pushes and deploys to S3.  
 Now supports deploying only an optional subdirectory of the repo.  
 
