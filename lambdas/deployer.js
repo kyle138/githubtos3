@@ -17,6 +17,25 @@ const { sync } = new S3SyncClient({ client: s3Client });
 const monitor = new S3SyncClient.TransferMonitor();
 
 //
+// Validate Subdir
+// The (optional) subdir value in deploy.json must not begin with / but it must end with /
+// subdir: {string} - The subdir value to validate
+// return: Promise
+function validateSubdir(subdir) {
+  return new Promise((resolve) => {
+    if(typeof subdir !== 'string' || subdir.length<1 || subdir === '/') {
+      // subdir must be a string of at least 1 char not /, otherwise set it to null
+      return resolve(null);
+    } else {
+      // Strip all / off the front of subdir
+      // Replace any matches of 2 or more consecutive //s with a single /
+      // Append / to end of subdir if it doesn't already exist
+      return resolve(subdir.replace(/^\/+/,'').replace(/\/{2,}/g,'/').replace(/(?<!\/)$/,'/'));
+    }
+  }); // End Promise
+} // End validateSubdir
+
+//
 // Extract the archive
 // params: {object}
 // archive: {string} - The path to the archive to extract.
@@ -36,8 +55,9 @@ function extractArchive(params) {
       // Get the list of directories and files in this archive
       const zipEntries = Object.keys(await zip.entries());
       // The first entry will always be the subdirectory added by github based on this commit hash
-      // If no subdir provided only extract the github subdirectory, otherwise extract the githubsubdir/providedsubdir
+      // If no subdir provided only extract the github subdirectory, otherwise extract the githubsubdir/providedsubdir/
       const subdir = (params.subdir === null) ? zipEntries[0] : zipEntries[0]+params.subdir;
+
       if(!zipEntries.includes(subdir)) {
         console.log('This subdirectory does not exist!!!'); //DEBUG
         console.log(zipEntries);  //DEBUG
@@ -188,7 +208,7 @@ export const handler = async (event, context) => {
     const deployObj = snsEventObject.deploy;
 
     // Check if deploy.json has a subdir set
-    const subdir = deployObj.deploy?.subdir ? deployObj.deploy.subdir : null;
+    const subdir = deployObj.deploy?.subdir ? await validateSubdir(deployObj.deploy.subdir) : null;
 
     // Extract the archive and return the directory it was extrated into
     const extractedTo = await extractArchive({
